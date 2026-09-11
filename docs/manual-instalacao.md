@@ -11,7 +11,7 @@
 ### Para Opção 2: Execução Local (Sem Dev Container)
 - **[Docker](https://www.docker.com/)** (para subir a imagem do PostgreSQL) ou uma instância local do PostgreSQL rodando.
 
-- **IDE** IDE de sua preferência ([Visual Studio Code](https://code.visualstudio.com/) ou ou **[IntelliJ IDEA](https://www.jetbrains.com/pt-br/idea/)**).
+- **IDE** IDE de sua preferência ([Visual Studio Code](https://code.visualstudio.com/) ou **[IntelliJ IDEA](https://www.jetbrains.com/pt-br/idea/)**).
 
 ## Passo a passo:
 1. **Clone o repositório**:
