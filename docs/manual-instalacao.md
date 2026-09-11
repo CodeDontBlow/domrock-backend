@@ -11,7 +11,8 @@
 ### Para Opção 2: Execução Local (Sem Dev Container)
 - **[Docker](https://www.docker.com/)** (para subir a imagem do PostgreSQL) ou uma instância local do PostgreSQL rodando.
 
-- **IDE** IDE de sua preferência ([Visual Studio Code](https://code.visualstudio.com/) ou **[IntelliJ IDEA](https://www.jetbrains.com/pt-br/idea/)**).
+- **IDE** IDE de sua preferência ([Visual Studio Code](https://code.visualstudio.com/) ou **[IntelliJ IDEA](https://www.jetbrains.com/pt-br/idea/)**).
+
 
 ## Passo a passo:
 1. **Clone o repositório**:
@@ -38,7 +39,12 @@ cd domrock-backend
 
 2. Suba o banco PostgreSQL via Docker:
 ```bash
-docker run --name postgres-camplana -e POSTGRES_PASSWORD=postgres -e POSTGRES_USER=postgres -e POSTGRES_DB=postgres -p 5432:5432 -d postgres
+docker run --name postgres-camplana \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_DB=postgres \
+  -p 5432:5432 \
+  -d postgres:17
 ```
 
 3. Execute a aplicação via Maven Wrapper:
