@@ -14,7 +14,8 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode
-public class MarcaCargoId implements Serializable {
+@jakarta.persistence.Embeddable
+public class MarcaCargoId implements Serializable
 
     private Integer marcaId;
     private Integer cargoId;
