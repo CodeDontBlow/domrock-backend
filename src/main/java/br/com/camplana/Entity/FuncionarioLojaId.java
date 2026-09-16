@@ -14,7 +14,8 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode
-public class FuncionarioLojaId implements Serializable {
+@jakarta.persistence.Embeddable
+public class FuncionarioLojaId implements Serializable
 
     private Integer funcionarioId;
     private Integer lojaId;
