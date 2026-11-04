@@ -1,13 +1,14 @@
 package br.com.camplana.security;
 
 import br.com.camplana.client.LanaClient;
-import br.com.camplana.client.LanaSimulacaoClient;
 import br.com.camplana.controller.*;
 import br.com.camplana.entity.Perfil;
 import br.com.camplana.entity.Usuario;
 import br.com.camplana.handler.SecurityErrorHandler;
 import br.com.camplana.mapper.UsuarioMapper;
 import br.com.camplana.repository.UsuarioRepository;
+import br.com.camplana.service.ChatService;
+import br.com.camplana.service.SimulacaoManagerService;
 import br.com.camplana.service.UsuarioService;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,8 +39,9 @@ public abstract class SecurityTestBase {
     @Autowired protected JwtService jwtService;
 
     @MockitoBean protected UsuarioRepository usuarioRepository;
+    @MockitoBean protected ChatService chatService;
     @MockitoBean protected LanaClient lanaClient;
-    @MockitoBean protected LanaSimulacaoClient lanaSimulacaoClient;
+    @MockitoBean protected SimulacaoManagerService simulacaoManagerService;
     @MockitoBean protected ImportacaoManagerService managerService;
     @MockitoBean protected UsuarioService usuarioService;
     @MockitoBean protected UsuarioMapper usuarioMapper;
