@@ -130,7 +130,7 @@ No profile `dev`, qualquer uma dessas variáveis, se definida, substitui o padr�
 
 ## 💻 Executando o Projeto
 
-Para subir o sistema completo (banco, backend, Lana e frontend) com um comando, use o repositório [domrock-camplana](https://github.com/codedontblow-org/domrock-camplana). As instruções abaixo rodam **só o backend**, para desenvolvimento.
+Para subir o sistema completo (banco, backend, Lana e frontend) com um comando, use o repositório [domrock-camplana](https://github.com/codedontblow/domrock-camplana). As instruções abaixo rodam **só o backend**, para desenvolvimento.
 
 ### Pré-requisitos
 
@@ -143,7 +143,7 @@ Antes de executar o projeto, certifique-se de possuir:
 ### 1. Clone o repositório
 
 ```bash
-git clone https://github.com/codedontblow-org/domrock-backend.git
+git clone https://github.com/codedontblow/domrock-backend.git
 cd domrock-backend
 ```
 

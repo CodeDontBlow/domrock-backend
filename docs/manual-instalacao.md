@@ -17,7 +17,7 @@
 ## Passo a passo:
 1. **Clone o repositório**:
 ```bash
-git clone https://github.com/codedontblow-org/domrock-backend.git
+git clone https://github.com/codedontblow/domrock-backend.git
 cd domrock-backend
 
 ```
