@@ -80,6 +80,14 @@ public class CampanhaConsultaService {
         return campanhas.stream().map(campanha -> montador.resumo(carregador.carregar(campanha))).toList();
     }
 
+    /** Auditoria: todas as campanhas de todos os autores, para o Auditor. */
+    public List<CampanhaResumoResponse> todas(String status) {
+        List<Campanha> campanhas = status == null
+                ? campanhaRepository.findAllByOrderByAtualizadaEmDesc()
+                : campanhaRepository.findByStatusOrderByAtualizadaEmDesc(statusValido(status));
+        return campanhas.stream().map(campanha -> montador.resumo(carregador.carregar(campanha))).toList();
+    }
+
     /** Fila do Supervisor (5.5): o que outros submeteram, da mais antiga para a mais nova. */
     public List<FilaCampanhaResponse> fila(Usuario supervisor) {
         return versaoRepository

@@ -55,7 +55,7 @@ public abstract class CampanhaApiBase {
     @Autowired protected FakeRegistroSimulacoes simulacoes;
     @Autowired protected ContextoCampanhasService contextoCampanhas;
 
-    protected Usuario gabriela, sergio, silvia;
+    protected Usuario gabriela, sergio, silvia, paulo;
     private long proximaSimulacao;
 
     @BeforeEach
@@ -71,6 +71,7 @@ public abstract class CampanhaApiBase {
         gabriela = usuarioRepository.findById(1).orElseThrow();
         sergio = usuarioRepository.findById(2).orElseThrow();
         silvia = usuarioRepository.findById(3).orElseThrow();
+        paulo = usuarioRepository.findByEmailIgnoreCase("paulo@camplana.com.br").orElse(null);
     }
 
     // A re-simulação (V9) aponta para a versão: sai antes dela, aqui e no fim, para não travar a limpeza

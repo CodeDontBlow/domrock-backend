@@ -435,4 +435,55 @@ class CampanhaApiTest extends CampanhaApiBase {
                 .andExpect(jsonPath("$.intercorrencias[0].data_fim").value("2025-11-28"))
                 .andExpect(jsonPath("$.intercorrencias[0].origem").value("rh_novembro.xlsx"));
     }
+
+    // ---------- US-19 Auditor ----------
+
+    @Test
+    void auditorListaTodasCampanhasEmAuditoriaEGerenteContinuaVendoApenasAsProprias() throws Exception {
+        long idGabriela = salvarBlackFriday(gabriela);
+        long idSergio = submeterBlackFriday(sergio);
+
+        // Auditor vê todas as campanhas de todos os usuários
+        enviar(get("/api/campanhas/auditoria"), paulo)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)));
+
+        // Auditor pode filtrar por status em auditoria
+        enviar(get("/api/campanhas/auditoria?status=RASCUNHO"), paulo)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value(idGabriela));
+
+        // Gerente continua vendo só a própria campanha em /minhas
+        enviar(get("/api/campanhas/minhas"), gabriela)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value(idGabriela));
+    }
+
+    @Test
+    void auditorConsegueLerCampanhaEVersaoDeOutroAutorComAcoesVazias() throws Exception {
+        long id = submeterBlackFriday(gabriela);
+
+        // Auditor pode abrir a campanha criada por Gabriela; acoes deve ser vazia
+        enviar(get("/api/campanhas/" + id), paulo)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.acoes", empty()));
+
+        // Auditor pode abrir a versão 1 submetida; acoes deve ser vazia
+        enviar(get("/api/campanhas/" + id + "/versoes/1"), paulo)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.numero").value(1))
+                .andExpect(jsonPath("$.acoes", empty()));
+    }
+
+    @Test
+    void auditorNaoAcessaFilaDeAprovacao() throws Exception {
+        submeterBlackFriday(gabriela);
+
+        enviar(get("/api/campanhas/fila"), paulo)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+    }
 }

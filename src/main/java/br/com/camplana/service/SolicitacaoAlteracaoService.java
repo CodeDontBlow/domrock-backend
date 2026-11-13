@@ -405,7 +405,7 @@ public class SolicitacaoAlteracaoService {
         SolicitacaoAlteracao solicitacao = solicitacaoRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Solicitação não encontrada com ID: " + id));
 
-        if (usuarioLogado.getPerfil() != Perfil.SUPERVISOR) {
+        if (usuarioLogado.getPerfil() != Perfil.SUPERVISOR && usuarioLogado.getPerfil() != Perfil.AUDITOR) {
             Usuario autor = solicitacao.getAutor();
             if (autor == null || !usuarioLogado.getId().equals(autor.getId())) {
                 throw new AccessDeniedException(MSG_SEM_PERMISSAO);

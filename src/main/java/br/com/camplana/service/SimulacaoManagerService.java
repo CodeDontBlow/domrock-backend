@@ -99,7 +99,7 @@ public class SimulacaoManagerService {
 
     private void exigirPermissaoLeitura(Simulacao simulacao, Usuario leitor) {
         boolean ehAutor = Objects.equals(simulacao.getUsuario().getId(), leitor.getId());
-        if (ehAutor) {
+        if (ehAutor || leitor.getPerfil() == Perfil.AUDITOR) {
             return;
         }
         // A re-simulação (5.9) é de uma versão submetida: qualquer Supervisor a acompanha, como a versão.

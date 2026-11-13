@@ -74,6 +74,25 @@ class AuthControllerTest {
     }
 
     @Test
+    void loginAuditorDevolvePerfilAuditor() throws Exception {
+        Usuario paulo = new Usuario();
+        paulo.setId(5);
+        paulo.setNome("Paulo");
+        paulo.setEmail("paulo@camplana.com.br");
+        paulo.setSenha(new BCryptPasswordEncoder().encode(SENHA));
+        paulo.setPerfil(Perfil.AUDITOR);
+        paulo.setAtivo(true);
+
+        when(usuarioRepository.findByEmailIgnoreCase(paulo.getEmail())).thenReturn(Optional.of(paulo));
+
+        login(paulo.getEmail(), SENHA)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.perfil").value("AUDITOR"))
+                .andExpect(jsonPath("$.usuario.id").value(5));
+    }
+
+    @Test
     void senhaErradaDevolve401Generico() throws Exception {
         when(usuarioRepository.findByEmailIgnoreCase(gabriela.getEmail())).thenReturn(Optional.of(gabriela));
 
