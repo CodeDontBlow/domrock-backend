@@ -78,7 +78,7 @@ class   SecurityPorPerfilTest extends SecurityTestBase {
         mockMvc.perform(get("/api/usuarios").header("Authorization", bearer(gabriela)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error").value("Forbidden"))
-                .andExpect(jsonPath("$.message").value("Sem permissão para esta ação"));
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
         verifyNoInteractions(usuarioService);
     }
     @Test void usuariosSupervisorRecebe403() throws Exception {
@@ -115,6 +115,157 @@ class   SecurityPorPerfilTest extends SecurityTestBase {
         when(usuarioMapper.toResponse(any())).thenReturn(new UsuarioResponse(1, "x", "x@x.com", Perfil.SUPERVISOR, true));
         mockMvc.perform(patch("/api/usuarios/1/reativar").header("Authorization", bearer(ana)))
                 .andExpect(liberado());
+    }
+
+    // ---------- AUDITOR: leituras permitidas ----------
+    @Test void auditorPodeLerMensagensDoChat() throws Exception {
+        mockMvc.perform(get("/api/chat/chat-123/mensagens").header("Authorization", bearer(paulo)))
+                .andExpect(liberado());
+    }
+
+    @Test void auditorPodeAcessarRotaDeAuditoriaDeCampanhas() throws Exception {
+        mockMvc.perform(get("/api/campanhas/auditoria").header("Authorization", bearer(paulo)))
+                .andExpect(liberado());
+    }
+
+    @Test void auditorPodeLerDetalhesDeCampanha() throws Exception {
+        mockMvc.perform(get("/api/campanhas/1").header("Authorization", bearer(paulo)))
+                .andExpect(liberado());
+    }
+
+    @Test void auditorPodeLerVersaoDeCampanha() throws Exception {
+        mockMvc.perform(get("/api/campanhas/1/versoes/1").header("Authorization", bearer(paulo)))
+                .andExpect(liberado());
+    }
+
+    @Test void auditorPodeLerCampanhasAprovadas() throws Exception {
+        mockMvc.perform(get("/api/campanhas/aprovadas").header("Authorization", bearer(paulo)))
+                .andExpect(liberado());
+    }
+
+    @Test void gerenteNaoPodeAcessarRotaDeAuditoria() throws Exception {
+        mockMvc.perform(get("/api/campanhas/auditoria").header("Authorization", bearer(gabriela)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+    }
+
+    @Test void supervisorNaoPodeAcessarRotaDeAuditoria() throws Exception {
+        mockMvc.perform(get("/api/campanhas/auditoria").header("Authorization", bearer(sergio)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+    }
+
+    // ---------- AUDITOR: não pode escrever nada (403 em todas as rotas de escrita) ----------
+    @Test void auditorNaoPodeConversarNoChat() throws Exception {
+        mockMvc.perform(post("/api/chat").header("Authorization", bearer(paulo))
+                        .contentType(JSON).content("{}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+        verifyNoInteractions(chatService);
+    }
+
+    @Test void auditorNaoPodeCriarSimulacao() throws Exception {
+        mockMvc.perform(post("/api/simulacoes").header("Authorization", bearer(paulo))
+                        .contentType(JSON).content("{}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+        verifyNoInteractions(simulacaoManagerService);
+    }
+
+    @Test void auditorNaoPodeSalvarCampanha() throws Exception {
+        mockMvc.perform(post("/api/campanhas").header("Authorization", bearer(paulo))
+                        .contentType(JSON).content("{}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+        verifyNoInteractions(campanhaService);
+    }
+
+    @Test void auditorNaoPodeRenomearCampanha() throws Exception {
+        mockMvc.perform(put("/api/campanhas/1").header("Authorization", bearer(paulo))
+                        .contentType(JSON).content("{\"nome\":\"Novo Nome\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+        verifyNoInteractions(campanhaService);
+    }
+
+    @Test void auditorNaoPodeSubmeterCampanha() throws Exception {
+        mockMvc.perform(post("/api/campanhas/1/submeter").header("Authorization", bearer(paulo)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+        verifyNoInteractions(campanhaService);
+    }
+
+    @Test void auditorNaoPodeDecidirCampanha() throws Exception {
+        mockMvc.perform(post("/api/campanhas/1/decidir").header("Authorization", bearer(paulo))
+                        .contentType(JSON).content("{}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+        verifyNoInteractions(campanhaService);
+    }
+
+    @Test void auditorNaoPodeResimularVersao() throws Exception {
+        mockMvc.perform(post("/api/campanhas/1/versoes/1/resimular").header("Authorization", bearer(paulo)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+        verifyNoInteractions(resimulacaoService);
+    }
+
+    @Test void auditorNaoPodeEditarCampanha() throws Exception {
+        mockMvc.perform(post("/api/campanhas/1/editar").header("Authorization", bearer(paulo)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+        verifyNoInteractions(campanhaService);
+    }
+
+    @Test void auditorNaoPodeArquivarCampanha() throws Exception {
+        mockMvc.perform(post("/api/campanhas/1/arquivar").header("Authorization", bearer(paulo)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+        verifyNoInteractions(campanhaService);
+    }
+
+    @Test void auditorNaoAcessaFilaDeAprovacao() throws Exception {
+        mockMvc.perform(get("/api/campanhas/fila").header("Authorization", bearer(paulo)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+        verifyNoInteractions(campanhaConsultaService);
+    }
+
+    @Test void auditorNaoPodeCriarUsuario() throws Exception {
+        mockMvc.perform(post("/api/usuarios").header("Authorization", bearer(paulo))
+                        .contentType(JSON).content("{}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+        verifyNoInteractions(usuarioService);
+    }
+
+    @Test void auditorNaoPodeAtualizarUsuario() throws Exception {
+        mockMvc.perform(put("/api/usuarios/1").header("Authorization", bearer(paulo))
+                        .contentType(JSON).content("{}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+        verifyNoInteractions(usuarioService);
+    }
+
+    @Test void auditorNaoPodeDeletarUsuario() throws Exception {
+        mockMvc.perform(delete("/api/usuarios/1").header("Authorization", bearer(paulo)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+        verifyNoInteractions(usuarioService);
+    }
+
+    @Test void auditorNaoPodeReativarUsuario() throws Exception {
+        mockMvc.perform(patch("/api/usuarios/1/reativar").header("Authorization", bearer(paulo)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+        verifyNoInteractions(usuarioService);
+    }
+
+    @Test void auditorNaoPodeImportarDados() throws Exception {
+        mockMvc.perform(importar().header("Authorization", bearer(paulo)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+        verifyNoInteractions(managerService);
     }
 
     // ---------- rota não mapeada: denyAll ----------

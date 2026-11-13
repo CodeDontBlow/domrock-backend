@@ -210,6 +210,8 @@ class ChatApiTest extends CampanhaApiBase {
                 .andExpect(status().isOk());
         mvc.perform(get("/api/chat/" + chatId + "/mensagens").header("Authorization", autorizacao(sergio)))
                 .andExpect(status().isForbidden());
+        mvc.perform(get("/api/chat/" + chatId + "/mensagens").header("Authorization", autorizacao(paulo)))
+                .andExpect(status().isOk());
 
         mvc.perform(post("/api/campanhas/" + idCampanha + "/submeter").header("Authorization", autorizacao(gabriela)))
                 .andExpect(status().isOk());
@@ -217,6 +219,18 @@ class ChatApiTest extends CampanhaApiBase {
                 .andExpect(status().isOk());
         mvc.perform(get("/api/chat/chat-inexistente/mensagens").header("Authorization", autorizacao(gabriela)))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void auditorConsegueLerMensagensDeOutroUsuarioMesmoSemCampanhaSubmetida() throws Exception {
+        String chatId = "chat-auditor-leitura";
+        mensagemChatRepository.save(new MensagemChat(
+                chatId, gabriela, "usuario", null, null, "Mensagem da Gabriela", null, null, Instant.now()
+        ));
+
+        mvc.perform(get("/api/chat/" + chatId + "/mensagens").header("Authorization", autorizacao(paulo)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mensagens[0].texto").value("Mensagem da Gabriela"));
     }
 
     @Test

@@ -133,6 +133,18 @@ class PermissoesCampanhaTest {
                 .isInstanceOf(ForbiddenException.class);
     }
 
+    @Test
+    void auditorVeRascunhoNuncaSubmetido() {
+        assertThatCode(() -> PermissoesCampanha.exigirLeitura(rascunho(), usuario(5, Perfil.AUDITOR)))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void auditorVeCampanhaSubmetida() {
+        assertThatCode(() -> PermissoesCampanha.exigirLeitura(comStatus(AGUARDANDO_APROVACAO), usuario(5, Perfil.AUDITOR)))
+                .doesNotThrowAnyException();
+    }
+
     private static Usuario usuario(int id, Perfil perfil) {
         var usuario = new Usuario();
         usuario.setId(id);

@@ -38,7 +38,7 @@ public final class PermissoesVersao {
 
     private static Optional<RuntimeException> violacao(AcaoVersao acao, SituacaoVersao situacao, Usuario usuario) {
         if (usuario.getPerfil() != Perfil.SUPERVISOR) {
-            return Optional.of(new ForbiddenException("Sem permissão para esta ação"));
+            return Optional.of(new ForbiddenException("Seu perfil não permite esta ação."));
         }
         if (situacao.autorId() == usuario.getId()) {
             return Optional.of(new ForbiddenException("Outra pessoa precisa aprovar esta campanha"));

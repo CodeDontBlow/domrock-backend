@@ -30,7 +30,7 @@ public class SecurityErrorHandler implements AuthenticationEntryPoint, AccessDen
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response,
                        AccessDeniedException ex) throws IOException {
-        escrever(request, response, HttpStatus.FORBIDDEN, "Sem permissão para esta ação");
+        escrever(request, response, HttpStatus.FORBIDDEN, "Seu perfil não permite esta ação.");
     }
 
     private void escrever(HttpServletRequest request, HttpServletResponse response,

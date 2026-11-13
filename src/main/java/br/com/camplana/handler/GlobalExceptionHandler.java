@@ -48,7 +48,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErroResponse> handleAccessDenied(AccessDeniedException ex, HttpServletRequest req) {
-        return erro(HttpStatus.FORBIDDEN, ex.getMessage(), req);
+        String mensagem = (ex.getMessage() != null && !ex.getMessage().isBlank())
+                ? ex.getMessage()
+                : "Seu perfil não permite esta ação.";
+        return erro(HttpStatus.FORBIDDEN, mensagem, req);
     }
 
     @ExceptionHandler(ResponseStatusException.class)

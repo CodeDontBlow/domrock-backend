@@ -40,11 +40,12 @@ public final class PermissoesCampanha {
         });
     }
 
-    /** O autor sempre vê; os Supervisores, depois da primeira submissão (contrato 5.6). */
+    /** O autor sempre vê; os Supervisores, depois da primeira submissão (contrato 5.6); o Auditor sempre vê. */
     public static void exigirLeitura(SituacaoCampanha situacao, Usuario leitor) {
         boolean autor = situacao.autorId() == leitor.getId();
         boolean supervisorComVersao = leitor.getPerfil() == Perfil.SUPERVISOR && situacao.versaoAtual() != null;
-        if (!autor && !supervisorComVersao) {
+        boolean auditor = leitor.getPerfil() == Perfil.AUDITOR;
+        if (!autor && !supervisorComVersao && !auditor) {
             throw new ForbiddenException("Sem permissão para ver a campanha " + situacao.campanhaId());
         }
     }
