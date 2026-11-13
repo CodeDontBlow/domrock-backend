@@ -14,7 +14,7 @@ public record SolicitacaoDetalheResponse(
         String matricula,
         String competencia,
         String antes,
-        String depois,
+        Object depois,
         String motivo,
         OrigemSolicitacao origem,
         @JsonProperty("chat_id")
