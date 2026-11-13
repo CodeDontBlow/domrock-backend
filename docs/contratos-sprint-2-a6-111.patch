@@ -1,0 +1,101 @@
+--- a/docs/contratos-sprint-2.md
++++ b/docs/contratos-sprint-2.md
+@@ -1003,9 +1003,9 @@
+ Quando entrar: `POST /api/campanhas/{id}/cancelamento` com `{ "motivo": "..." }`. O pedido vira um item da mesma fila de aprovação; ao ser aprovado, a campanha passa a `ARQUIVADA` e sai da % vigente a partir da data da aprovação.
+
+ ---
+
+-## 6. Correção da base
++## 6. Correção da base e intercorrências de RH
+
+ **Situação:** nova (A6-80, A6-81).
+
+ Uma correção pontual na base cadastral vira uma **solicitação**, aplicada só depois de aprovada por outra pessoa, no mesmo fluxo das campanhas.
+@@ -1058,9 +1058,13 @@
+   "decisao": null
+ }
+ ```
+
+-### 6.2. Fila e detalhe
++### 6.2. Minhas solicitações, fila e detalhe
++
++- **`GET /api/correcoes/minhas`**: GERENTE ou SUPERVISOR; lista somente as solicitações
++  do usuário logado, em todos os status, da mais recente para a mais antiga. Retorna
++  uma lista de objetos no mesmo formato do detalhe (incluindo `depois` estruturado para RH).
+
+ - **`GET /api/correcoes/fila`**: só SUPERVISOR (linha própria no `SecurityConfig`); lista as pendentes, menos as que o próprio Supervisor abriu.
+ - **`GET /api/correcoes/{id}`**: o autor e os Supervisores. Com `origem: "LANA"`, a tela mostra "aberta pela Lana a pedido de Gabriela" e o link para a conversa.
+
+@@ -1080,8 +1084,72 @@
+ | Quem decide ≠ autor | 403 | `Outra pessoa precisa aprovar esta correção` |
+ | Ainda `PENDENTE` | 409 | `Esta correção já foi decidida por Sílvia em 21/10/2026` |
+ | Reprovar com justificativa não vazia | 400 | `Justificativa obrigatória para reprovar` |
+ | `antes` ainda igual à base | 409 | `A base mudou desde o pedido` |
++
++### 6.4. Intercorrências de RH (A6-111 / US-22)
++
++Usam a mesma solicitação e as mesmas rotas de correção da base (opção A).
++GERENTE e SUPERVISOR podem abrir; somente outro SUPERVISOR pode decidir.
++
++| `tipo` na API | `tipo` em `evento_rh` |
++|---|---|
++| `AFASTAMENTO` | `afastamento` |
++| `FERIAS` | `ferias` |
++| `LICENCA_MATERNIDADE` | `licenca_maternidade` |
++| `COBERTURA_LOJA` | `cobertura_loja` |
++| `DEMISSAO` | `demissao` |
++
++**`POST /api/correcoes`** — exemplo de cobertura:
++
++```json
++{
++  "tipo": "COBERTURA_LOJA",
++  "matricula": "MATRIC-38",
++  "competencia": "2026-11",
++  "antes": null,
++  "depois": {
++    "data_inicio": "2026-11-13",
++    "data_fim": "2026-11-20",
++    "cod_loja": "8"
++  },
++  "motivo": "Cobertura durante as férias do gerente da loja",
++  "origem": "USUARIO"
++}
++```
++
++- `matricula` deve existir. Para RH não é exigida alocação mensal em `funcionario_loja`.
++- `competencia` mantém o formato obrigatório `YYYY-MM` do envelope de solicitação.
++  O período efetivo do evento é definido por `data_inicio` e `data_fim`.
++- `antes` deve ser ausente ou `null`; `depois` é um objeto, e não texto contendo JSON.
++- As duas datas são obrigatórias (`YYYY-MM-DD`), com fim igual ou posterior ao início.
++  Para registrar uma demissão pontual, informe a mesma data em ambos os campos.
++- `cod_loja` é o código de negócio de uma loja existente, obrigatório somente em
++  `COBERTURA_LOJA`. Nos outros tipos deve ser omitido ou `null`.
++- `motivo` é obrigatório e não pode ser vazio. Campos desconhecidos dentro de `depois`
++  são recusados. Falhas nessas validações retornam **400**.
++- A resposta **201** tem o mesmo envelope da seção 6.1, com `status: "PENDENTE"`,
++  `antes: null`, `depois` como objeto (incluindo `cod_loja: null` quando não aplicável),
++  autor obtido do token e `decisao: null`. As correções antigas continuam retornando
++  `antes` e `depois` escalares.
++- Um pedido pendente igual ou um evento já registrado, inclusive por importação,
++  retorna **409**, `message: "Intercorrência igual já registrada ou pendente"`.
++  A identidade é matrícula, tipo, início, fim e loja; motivo, autor e origem não a alteram.
++  Pedidos reprovados permitem nova solicitação.
++- A aprovação verifica novamente a existência da matrícula, da loja e de eventos iguais.
++  Se a base mudou, retorna **409** e mantém o pedido pendente.
++- Apenas a aprovação insere em `evento_rh`, na mesma transação da decisão, com
++  `origem: "solicitacao_alteracao:<id>"` para rastrear autor, motivo e aprovador.
++  Pendências e reprovações não geram eventos. Os registros importados continuam efetivos.
++  `DEMISSAO` registra o evento, sem editar `funcionario.data_demissao`; a correção dessa
++  coluna continua sendo `DATA_DEMISSAO`.
++- A fila e o detalhe da seção 6.2 incluem esses tipos; a decisão segue a seção 6.3,
++  inclusive **403** `Outra pessoa precisa aprovar esta correção` para decisão pelo autor
++  e **400** para reprovação sem justificativa.
++- O endpoint público aceita `origem: "USUARIO"`. A origem `LANA` só é definida pelo
++  fluxo interno autenticado do chat, após confirmação do usuário (integração A6-124).
++  Esta tarefa não implementa a conversa nem sua confirmação.
++
+
+ ---
+
+ ## 7. Importação da base do mês
