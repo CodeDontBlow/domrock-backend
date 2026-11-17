@@ -388,4 +388,111 @@ class ChatApiTest extends CampanhaApiBase {
 
         assertThat(mensagemChatRepository.findByChatIdOrderByCriadaEmAscIdAsc(chatErro)).isEmpty();
     }
+
+    @Test
+    void gerenteNaoRecebeSqlNemCodigoNoPostChatMasBancoGravaTrilhaCompleta() throws Exception {
+        String chatId = "chat-a6-106-post-gerente";
+        given(lanaClient.invocarAgente(any(), any())).willReturn(JSON.readTree("""
+                {
+                  "chat_id": "chat-a6-106-post-gerente",
+                  "response": "Vendas consultadas.",
+                  "events": [{"tool": "consultar_banco", "sql": "SELECT sum(valor) FROM venda", "sql_executado": "SELECT sum(valor) FROM venda"}],
+                  "regra": {"rule_id": "r1"},
+                  "trilha": {
+                    "modelo": "gemini-3.5-flash-lite",
+                    "passos": [
+                      {
+                        "ordem": 1,
+                        "ferramenta": "consultar_banco",
+                        "tabelas": ["venda"],
+                        "sql": "SELECT sum(valor) FROM venda",
+                        "sql_executado": "SELECT sum(valor) FROM venda",
+                        "codigo": "df.sum()",
+                        "codigo_gerado": "df.sum()"
+                      }
+                    ]
+                  }
+                }
+                """));
+
+        mvc.perform(post("/api/chat")
+                        .header("Authorization", autorizacao(gabriela))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"chat_id\":\"" + chatId + "\",\"message\":\"Quanto vendeu?\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").value("Vendas consultadas."))
+                .andExpect(jsonPath("$.trilha.modelo").value("gemini-3.5-flash-lite"))
+                .andExpect(jsonPath("$.trilha.passos[0].ferramenta").value("consultar_banco"))
+                .andExpect(jsonPath("$.trilha.passos[0].tabelas[0]").value("venda"))
+                .andExpect(jsonPath("$.trilha.passos[0].sql").doesNotExist())
+                .andExpect(jsonPath("$.trilha.passos[0].sql_executado").doesNotExist())
+                .andExpect(jsonPath("$.trilha.passos[0].codigo").doesNotExist())
+                .andExpect(jsonPath("$.trilha.passos[0].codigo_gerado").doesNotExist())
+                .andExpect(jsonPath("$.events[0].sql").doesNotExist())
+                .andExpect(jsonPath("$.events[0].sql_executado").doesNotExist());
+
+        // No banco a trilha continua completa com o SQL gravado
+        List<MensagemChat> salvas = mensagemChatRepository.findByChatIdOrderByCriadaEmAscIdAsc(chatId);
+        assertThat(salvas).hasSize(2);
+        assertThat(salvas.get(1).getTrilha()).contains("SELECT sum(valor) FROM venda");
+        assertThat(salvas.get(1).getTrilha()).contains("sql_executado");
+    }
+
+    @Test
+    void getMensagensOcultaSqlParaGerenteEMantemParaSupervisor() throws Exception {
+        String chatId = "chat-a6-106-get-mensagens";
+        long idCampanha = criarCampanha(chatId);
+        String trilhaComSql = """
+                {
+                  "modelo": "gemini-3.5-flash-lite",
+                  "passos": [
+                    {
+                      "ordem": 1,
+                      "ferramenta": "consultar_banco",
+                      "tabelas": ["venda", "loja"],
+                      "sql": "SELECT * FROM venda JOIN loja ON venda.loja_id = loja.id",
+                      "sql_executado": "SELECT * FROM venda JOIN loja ON venda.loja_id = loja.id",
+                      "codigo": "print(1)",
+                      "codigo_gerado": "print(2)"
+                    }
+                  ]
+                }
+                """;
+        Instant t1 = Instant.parse("2026-10-21T12:00:00Z");
+        Instant t2 = Instant.parse("2026-10-21T12:00:05Z");
+        mensagemChatRepository.save(new MensagemChat(
+                chatId, gabriela, "usuario", null, null, "Oi", null, null, t1
+        ));
+        mensagemChatRepository.save(new MensagemChat(
+                chatId, gabriela, "lana", null, null, "Consultei as vendas.", "{\"rule_id\":\"bf-1\"}", trilhaComSql, t2
+        ));
+
+        mvc.perform(post("/api/campanhas/" + idCampanha + "/submeter")
+                        .header("Authorization", autorizacao(gabriela)))
+                .andExpect(status().isOk());
+
+        // Gerente: vê ferramenta e tabelas lidas, mas sem sql/sql_executado/codigo/codigo_gerado
+        mvc.perform(get("/api/chat/" + chatId + "/mensagens")
+                        .header("Authorization", autorizacao(gabriela)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mensagens[1].trilha.passos[0].ferramenta").value("consultar_banco"))
+                .andExpect(jsonPath("$.mensagens[1].trilha.passos[0].tabelas[0]").value("venda"))
+                .andExpect(jsonPath("$.mensagens[1].trilha.passos[0].tabelas[1]").value("loja"))
+                .andExpect(jsonPath("$.mensagens[1].trilha.passos[0].sql").doesNotExist())
+                .andExpect(jsonPath("$.mensagens[1].trilha.passos[0].sql_executado").doesNotExist())
+                .andExpect(jsonPath("$.mensagens[1].trilha.passos[0].codigo").doesNotExist())
+                .andExpect(jsonPath("$.mensagens[1].trilha.passos[0].codigo_gerado").doesNotExist());
+
+        // Supervisor: recebe o SQL e o código completos
+        mvc.perform(get("/api/chat/" + chatId + "/mensagens")
+                        .header("Authorization", autorizacao(sergio)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mensagens[1].trilha.passos[0].ferramenta").value("consultar_banco"))
+                .andExpect(jsonPath("$.mensagens[1].trilha.passos[0].sql")
+                        .value("SELECT * FROM venda JOIN loja ON venda.loja_id = loja.id"))
+                .andExpect(jsonPath("$.mensagens[1].trilha.passos[0].sql_executado")
+                        .value("SELECT * FROM venda JOIN loja ON venda.loja_id = loja.id"))
+                .andExpect(jsonPath("$.mensagens[1].trilha.passos[0].codigo").value("print(1)"))
+                .andExpect(jsonPath("$.mensagens[1].trilha.passos[0].codigo_gerado").value("print(2)"));
+    }
 }

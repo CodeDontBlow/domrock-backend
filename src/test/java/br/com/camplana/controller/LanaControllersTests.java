@@ -10,6 +10,7 @@ import br.com.camplana.repository.CampanhaVersaoRepository;
 import br.com.camplana.repository.MensagemChatRepository;
 import br.com.camplana.repository.SimulacaoRepository;
 import br.com.camplana.repository.UsuarioRepository;
+import br.com.camplana.security.FiltroConteudoTecnico;
 import br.com.camplana.security.JwtService;
 import br.com.camplana.security.PasswordConfig;
 import br.com.camplana.security.SecurityConfig;
@@ -52,7 +53,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         properties = "api.security.token.secret=segredo-de-teste-com-mais-de-32-caracteres"
 )
 @Import({SecurityConfig.class, SecurityErrorHandler.class, GlobalExceptionHandler.class, JwtService.class,
-        UsuarioDetailsService.class, PasswordConfig.class, SimulacaoManagerService.class, ChatService.class})
+        UsuarioDetailsService.class, PasswordConfig.class, SimulacaoManagerService.class, ChatService.class,
+        FiltroConteudoTecnico.class})
 class LanaControllersTests {
 
     private static final ObjectMapper JSON = new ObjectMapper();
