@@ -14,6 +14,8 @@ import br.com.camplana.exception.NotFoundException;
 import br.com.camplana.repository.CampanhaRepository;
 import br.com.camplana.repository.CampanhaVersaoRepository;
 import br.com.camplana.repository.SimulacaoRepository;
+import br.com.camplana.security.FiltroConteudoTecnico;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
@@ -35,6 +37,7 @@ public class SimulacaoManagerService {
     private final CampanhaRepository campanhaRepository;
     private final CampanhaVersaoRepository campanhaVersaoRepository;
     private final ObjectMapper objectMapper;
+    private final FiltroConteudoTecnico filtroConteudo;
 
     public SimulacaoManagerService(SimulacaoPersistenceService persistenceService,
                                    SimulacaoJobService jobService,
@@ -42,12 +45,25 @@ public class SimulacaoManagerService {
                                    CampanhaRepository campanhaRepository,
                                    CampanhaVersaoRepository campanhaVersaoRepository,
                                    ObjectMapper objectMapper) {
+        this(persistenceService, jobService, simulacaoRepository, campanhaRepository,
+                campanhaVersaoRepository, objectMapper, new FiltroConteudoTecnico(objectMapper));
+    }
+
+    @Autowired
+    public SimulacaoManagerService(SimulacaoPersistenceService persistenceService,
+                                   SimulacaoJobService jobService,
+                                   SimulacaoRepository simulacaoRepository,
+                                   CampanhaRepository campanhaRepository,
+                                   CampanhaVersaoRepository campanhaVersaoRepository,
+                                   ObjectMapper objectMapper,
+                                   FiltroConteudoTecnico filtroConteudo) {
         this.persistenceService = persistenceService;
         this.jobService = jobService;
         this.simulacaoRepository = simulacaoRepository;
         this.campanhaRepository = campanhaRepository;
         this.campanhaVersaoRepository = campanhaVersaoRepository;
         this.objectMapper = objectMapper;
+        this.filtroConteudo = filtroConteudo != null ? filtroConteudo : new FiltroConteudoTecnico(objectMapper);
     }
 
     public SimulacaoCriadaResponse iniciarSimulacao(JsonNode body, Usuario usuario) {
@@ -92,8 +108,8 @@ public class SimulacaoManagerService {
                 simulacao.getConcluidaEm(),
                 simulacao.getDuracaoMs(),
                 simulacao.getFicha(),
-                simulacao.getResultado(),
-                simulacao.getErro()
+                filtroConteudo.filtrarJsonString(simulacao.getResultado(), usuario.getPerfil()),
+                filtroConteudo.filtrarJsonString(simulacao.getErro(), usuario.getPerfil())
         );
     }
 
