@@ -2,6 +2,7 @@ package br.com.camplana.campanha;
 
 import br.com.camplana.dto.campanha.*;
 import br.com.camplana.entity.Campanha;
+import br.com.camplana.entity.Perfil;
 import br.com.camplana.entity.CampanhaStatusLog;
 import br.com.camplana.entity.CampanhaVersao;
 import br.com.camplana.entity.Simulacao;
@@ -42,7 +43,8 @@ public class CampanhaRespostaMontador {
         Campanha campanha = retrato.campanha();
         return new CampanhaResponse(campanha.getId(), campanha.getNome(), campanha.getStatus(),
                 vigencia(retrato), retrato.simulacaoEmAndamentoId() != null,
-                PermissoesCampanha.acoes(retrato.situacao(), leitor.getId()),
+                leitor.getPerfil() == Perfil.AUDITOR ? List.of()
+                        : PermissoesCampanha.acoes(retrato.situacao(), leitor.getId()),
                 usuario(campanha.getAutor()), campanha.getChatId(), periodo(retrato),
                 retrato.situacao().versaoAtual(), ultimaSimulacao(retrato.ultimaSimulacao()),
                 versoes(retrato), log(retrato), campanha.getCriadaEm(), campanha.getAtualizadaEm());
@@ -51,7 +53,7 @@ public class CampanhaRespostaMontador {
     /** Item de "minhas campanhas" (5.4). */
     public CampanhaResumoResponse resumo(RetratoCampanha retrato) {
         Campanha campanha = retrato.campanha();
-        return new CampanhaResumoResponse(campanha.getId(), campanha.getNome(), campanha.getStatus(),
+        return new CampanhaResumoResponse(campanha.getId(), campanha.getNome(), usuario(campanha.getAutor()), campanha.getStatus(),
                 vigencia(retrato), retrato.simulacaoEmAndamentoId() != null,
                 retrato.situacao().versaoAtual(), periodo(retrato),
                 retrato.resultadoExibido().map(campos::custoAdicional).orElse(null),

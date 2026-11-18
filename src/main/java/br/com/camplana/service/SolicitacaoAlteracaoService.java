@@ -386,6 +386,15 @@ public class SolicitacaoAlteracaoService {
     // ------------------------------------------------------------------ consultas
 
     @Transactional(readOnly = true)
+    public List<SolicitacaoDetalheResponse> listarAuditoria(Usuario auditor) {
+        if (auditor == null || auditor.getId() == null || auditor.getPerfil() != Perfil.AUDITOR) {
+            throw new AccessDeniedException("Seu perfil não permite esta ação.");
+        }
+        return solicitacaoRepository.findAllByOrderByCriadaEmDescIdDesc()
+                .stream().map(this::toDetalheResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<SolicitacaoDetalheResponse> listarFila(Usuario supervisorLogado) {
         if (supervisorLogado == null || supervisorLogado.getId() == null) {
             throw new AccessDeniedException(MSG_SEM_PERMISSAO);
@@ -405,7 +414,7 @@ public class SolicitacaoAlteracaoService {
         SolicitacaoAlteracao solicitacao = solicitacaoRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Solicitação não encontrada com ID: " + id));
 
-        if (usuarioLogado.getPerfil() != Perfil.SUPERVISOR) {
+        if (usuarioLogado.getPerfil() != Perfil.SUPERVISOR && usuarioLogado.getPerfil() != Perfil.AUDITOR) {
             Usuario autor = solicitacao.getAutor();
             if (autor == null || !usuarioLogado.getId().equals(autor.getId())) {
                 throw new AccessDeniedException(MSG_SEM_PERMISSAO);
