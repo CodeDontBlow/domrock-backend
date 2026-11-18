@@ -37,6 +37,13 @@ public class SecurityConfig {
 
                     req.requestMatchers("/error").permitAll();
 
+                    // GERENTE, SUPERVISOR e AUDITOR -> LEITURA DE MENSAGENS DE CHAT
+                    req.requestMatchers(HttpMethod.GET, "/api/chat/*/mensagens").hasAnyRole("GERENTE", "SUPERVISOR", "AUDITOR");
+
+                    // Auditor consulta resultados já gravados, mas não inicia simulações.
+                    req.requestMatchers(HttpMethod.GET, "/api/simulacoes/*")
+                            .hasAnyRole("GERENTE", "SUPERVISOR", "AUDITOR");
+
                     // GERENTE e SUPERVISOR -> CHAT E SIMULACOES
                     req.requestMatchers("/api/chat/**").hasAnyRole("GERENTE", "SUPERVISOR");
                     req.requestMatchers("/api/simulacoes/**").hasAnyRole("GERENTE", "SUPERVISOR");
@@ -48,14 +55,26 @@ public class SecurityConfig {
                     // SUPERVISOR -> FILA DE APROVACAO (antes do /** abaixo: vale a primeira linha que casa)
                     req.requestMatchers(HttpMethod.GET, "/api/campanhas/fila").hasRole("SUPERVISOR");
 
-                    // GERENTE e SUPERVISOR -> CRIA CAMPANHA
+                    // AUDITOR -> TODAS AS CAMPANHAS
+                    req.requestMatchers(HttpMethod.GET, "/api/campanhas/auditoria").hasRole("AUDITOR");
+
+                    // GERENTE, SUPERVISOR e AUDITOR -> LEITURA DE CAMPANHAS E VERSOES
+                    req.requestMatchers(HttpMethod.GET, "/api/campanhas/**").hasAnyRole("GERENTE", "SUPERVISOR", "AUDITOR");
+
+                    // GERENTE e SUPERVISOR -> CRIA E ALTERA CAMPANHA
                     req.requestMatchers("/api/campanhas/**").hasAnyRole("GERENTE", "SUPERVISOR");
 
                     // SUPERVISOR -> DECIDE CORRECAO E ACESSA FILA
                     req.requestMatchers(HttpMethod.POST, "/api/correcoes/*/decidir").hasRole("SUPERVISOR");
                     req.requestMatchers("/api/correcoes/fila").hasRole("SUPERVISOR");
 
-                    // GERENTE e SUPERVISOR -> SOLICITA / LISTA CORRECAO
+                    // Auditoria global de correções é exclusiva do Auditor, antes do padrão geral.
+                    req.requestMatchers(HttpMethod.GET, "/api/correcoes/auditoria").hasRole("AUDITOR");
+
+                    // AUDITOR, GERENTE e SUPERVISOR -> LEITURA DE CORRECOES
+                    req.requestMatchers(HttpMethod.GET, "/api/correcoes/**").hasAnyRole("GERENTE", "SUPERVISOR", "AUDITOR");
+
+                    // GERENTE e SUPERVISOR -> SOLICITA CORRECAO
                     req.requestMatchers("/api/correcoes/**").hasAnyRole("GERENTE", "SUPERVISOR");
 
                     //ADMIN -> CONTROLE SOBRE USUARIOS

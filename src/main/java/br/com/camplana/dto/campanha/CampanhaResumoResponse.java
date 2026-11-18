@@ -7,10 +7,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-/** Item de "minhas campanhas" (contrato 5.4). */
+/** Item de minhas campanhas (5.4) e da auditoria, com identificação do autor. */
 public record CampanhaResumoResponse(
         long id,
         String nome,
+        UsuarioResumo autor,
         StatusCampanha status,
         Vigencia vigencia,
         @JsonProperty("em_simulacao") boolean emSimulacao,

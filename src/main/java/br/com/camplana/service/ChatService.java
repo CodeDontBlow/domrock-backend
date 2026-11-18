@@ -114,6 +114,9 @@ public class ChatService {
     }
 
     private void validarAcessoMensagens(String chatId, Usuario usuario) {
+        if (usuario.getPerfil() == Perfil.AUDITOR) {
+            return;
+        }
         Integer donoId = buscarDonoConversa(chatId).orElse(null);
         if (Objects.equals(donoId, usuario.getId())) {
             return;

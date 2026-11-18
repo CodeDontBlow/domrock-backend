@@ -52,6 +52,11 @@ public class CampanhaController {
         return consulta.aprovadas();
     }
 
+    @GetMapping("/auditoria")
+    public List<CampanhaResumoResponse> auditoria(@RequestParam(required = false) String status) {
+        return consulta.todas(status);
+    }
+
     @GetMapping("/{id}")
     public CampanhaResponse abrir(@PathVariable long id, @AuthenticationPrincipal Usuario usuario) {
         return consulta.abrir(id, usuario);
