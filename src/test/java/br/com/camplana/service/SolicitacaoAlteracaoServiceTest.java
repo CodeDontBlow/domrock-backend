@@ -54,6 +54,7 @@ class SolicitacaoAlteracaoServiceTest {
     @Mock private LojaRepository lojaRepository;
     @Mock private CargoRepository cargoRepository;
     @Mock private EntityManager entityManager;
+    @Mock private IntercorrenciaRhService intercorrenciaRhService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private SolicitacaoAlteracaoService service;
@@ -79,7 +80,8 @@ class SolicitacaoAlteracaoServiceTest {
                 lojaRepository,
                 cargoRepository,
                 objectMapper,
-                entityManager
+                entityManager,
+                intercorrenciaRhService
         );
 
         gabriela = criarUsuario(1, "Gabriela", "gabriela@camplana.com.br", Perfil.GERENTE);

@@ -12,6 +12,8 @@ import br.com.camplana.repository.CampanhaRepository;
 import br.com.camplana.repository.CampanhaVersaoRepository;
 import br.com.camplana.repository.MensagemChatRepository;
 import br.com.camplana.repository.SimulacaoRepository;
+import br.com.camplana.security.FiltroConteudoTecnico;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.databind.JsonNode;
@@ -43,6 +45,7 @@ public class ChatService {
     private final TransactionTemplate transactionTemplate;
     private final ObjectMapper objectMapper;
     private final Clock relogio;
+    private final FiltroConteudoTecnico filtroConteudo;
 
     public ChatService(LanaClient lanaClient,
                        MensagemChatRepository mensagemChatRepository,
@@ -52,6 +55,21 @@ public class ChatService {
                        TransactionTemplate transactionTemplate,
                        ObjectMapper objectMapper,
                        Optional<Clock> relogio) {
+        this(lanaClient, mensagemChatRepository, simulacaoRepository, campanhaRepository,
+                campanhaVersaoRepository, transactionTemplate, objectMapper, relogio,
+                new FiltroConteudoTecnico(objectMapper));
+    }
+
+    @Autowired
+    public ChatService(LanaClient lanaClient,
+                       MensagemChatRepository mensagemChatRepository,
+                       SimulacaoRepository simulacaoRepository,
+                       CampanhaRepository campanhaRepository,
+                       CampanhaVersaoRepository campanhaVersaoRepository,
+                       TransactionTemplate transactionTemplate,
+                       ObjectMapper objectMapper,
+                       Optional<Clock> relogio,
+                       FiltroConteudoTecnico filtroConteudo) {
         this.lanaClient = lanaClient;
         this.mensagemChatRepository = mensagemChatRepository;
         this.simulacaoRepository = simulacaoRepository;
@@ -60,6 +78,7 @@ public class ChatService {
         this.transactionTemplate = Objects.requireNonNull(transactionTemplate, "TransactionTemplate é obrigatório");
         this.objectMapper = objectMapper;
         this.relogio = relogio.orElseGet(Clock::systemUTC);
+        this.filtroConteudo = filtroConteudo != null ? filtroConteudo : new FiltroConteudoTecnico(objectMapper);
     }
 
     public JsonNode conversar(ChatRequest pedido, Usuario usuario) {
@@ -74,8 +93,8 @@ public class ChatService {
         salvarTurnoEmTransacao(chatId, usuario, pedido.message(), respostaLana);
 
         List<MensagemChat> novasSistema = buscarMensagensSistema(chatId, ultimoUsuarioMsgId);
-        anexarMensagensSistema(respostaLana, novasSistema);
-        return respostaLana;
+        anexarMensagensSistema(respostaLana, novasSistema, usuario.getPerfil());
+        return filtroConteudo.filtrarJsonNode(respostaLana, usuario.getPerfil());
     }
 
     private Long extrairUltimoUsuarioMsgId(List<MensagemChat> mensagens) {
@@ -92,13 +111,13 @@ public class ChatService {
                 chatId, "sistema", corteId);
     }
 
-    private void anexarMensagensSistema(JsonNode respostaLana, List<MensagemChat> novasSistema) {
+    private void anexarMensagensSistema(JsonNode respostaLana, List<MensagemChat> novasSistema, Perfil perfil) {
         if (!(respostaLana instanceof ObjectNode obj)) {
             return;
         }
         ArrayNode sisArray = objectMapper.createArrayNode();
         for (MensagemChat s : novasSistema) {
-            sisArray.add(converterMensagemParaJson(s));
+            sisArray.add(converterMensagemParaJson(s, perfil));
         }
         obj.set("mensagens_sistema", sisArray);
         obj.set("solicitacao", NullNode.getInstance());
@@ -110,10 +129,13 @@ public class ChatService {
             throw new NotFoundException("Conversa " + chatId + " não encontrada");
         }
         validarAcessoMensagens(chatId, usuario);
-        return montarRespostaMensagens(chatId, mensagens);
+        return montarRespostaMensagens(chatId, mensagens, usuario.getPerfil());
     }
 
     private void validarAcessoMensagens(String chatId, Usuario usuario) {
+        if (usuario.getPerfil() == Perfil.AUDITOR) {
+            return;
+        }
         Integer donoId = buscarDonoConversa(chatId).orElse(null);
         if (Objects.equals(donoId, usuario.getId())) {
             return;
@@ -134,7 +156,7 @@ public class ChatService {
                 .isPresent();
     }
 
-    private ObjectNode montarRespostaMensagens(String chatId, List<MensagemChat> mensagens) {
+    private ObjectNode montarRespostaMensagens(String chatId, List<MensagemChat> mensagens, Perfil perfil) {
         ObjectNode resposta = objectMapper.createObjectNode();
         resposta.put("chat_id", chatId);
         campanhaRepository.findByChatId(chatId)
@@ -144,7 +166,7 @@ public class ChatService {
 
         ArrayNode arrayMsgs = objectMapper.createArrayNode();
         for (MensagemChat m : mensagens) {
-            arrayMsgs.add(converterMensagemParaJson(m));
+            arrayMsgs.add(converterMensagemParaJson(m, perfil));
         }
         resposta.set("mensagens", arrayMsgs);
         return resposta;
@@ -208,6 +230,10 @@ public class ChatService {
     }
 
     public JsonNode converterMensagemParaJson(MensagemChat msg) {
+        return converterMensagemParaJson(msg, Perfil.SUPERVISOR);
+    }
+
+    public JsonNode converterMensagemParaJson(MensagemChat msg, Perfil perfil) {
         ObjectNode no = objectMapper.createObjectNode();
         no.put("id", msg.getId());
         no.put("papel", msg.getPapel());
@@ -217,7 +243,7 @@ public class ChatService {
         no.put("texto", msg.getTexto());
         if ("lana".equals(msg.getPapel())) {
             no.set("regra", lerJsonOuNull(msg.getFicha()));
-            no.set("trilha", lerJsonOuNull(msg.getTrilha()));
+            no.set("trilha", filtroConteudo.filtrarJsonNode(lerJsonOuNull(msg.getTrilha()), perfil));
         }
         if ("sistema".equals(msg.getPapel()) && "SIMULACAO".equals(msg.getTipo()) && msg.getSimulacaoId() != null) {
             no.put("simulacao_id", msg.getSimulacaoId());

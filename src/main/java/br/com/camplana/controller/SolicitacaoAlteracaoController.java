@@ -35,6 +35,20 @@ public class SolicitacaoAlteracaoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.criarSolicitacao(request, usuarioLogado));
     }
 
+    @GetMapping("/auditoria")
+    public ResponseEntity<List<SolicitacaoDetalheResponse>> listarAuditoria(
+            @AuthenticationPrincipal Usuario usuarioLogado
+    ) {
+        return ResponseEntity.ok(service.listarAuditoria(usuarioLogado));
+    }
+
+    @GetMapping("/minhas")
+    public ResponseEntity<List<SolicitacaoDetalheResponse>> listarMinhas(
+            @AuthenticationPrincipal Usuario usuarioLogado
+    ) {
+        return ResponseEntity.ok(service.listarMinhas(usuarioLogado));
+    }
+
     @GetMapping("/fila")
     public ResponseEntity<List<SolicitacaoDetalheResponse>> listarFila(
             @AuthenticationPrincipal Usuario usuarioLogado

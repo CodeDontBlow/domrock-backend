@@ -435,4 +435,134 @@ class CampanhaApiTest extends CampanhaApiBase {
                 .andExpect(jsonPath("$.intercorrencias[0].data_fim").value("2025-11-28"))
                 .andExpect(jsonPath("$.intercorrencias[0].origem").value("rh_novembro.xlsx"));
     }
+
+    @Test
+    void gerenteNaoRecebeCodigoNemSqlEmCampanhaEVersaoEnquantoSupervisorRecebe() throws Exception {
+        String resultadoComCodigo = """
+                {
+                  "totais": {"baseline": 480263.24, "simulado": 503999.34, "diferenca": 23736.10},
+                  "conflitos": [],
+                  "codigo": "resultado = calcular(vendas)",
+                  "codigo_gerado": "resultado = calcular(vendas)",
+                  "trilha": {
+                    "passos": [
+                      {"ordem": 1, "ferramenta": "consultar_banco", "tabelas": ["venda"], "sql": "SELECT * FROM venda"}
+                    ]
+                  }
+                }
+                """;
+        simulacoes.concluida(345, gabriela.getId(), "chat-a6-106", resultadoComCodigo);
+
+        // Salvar campanha (Gerente): ultima_simulacao.resultado vem sem codigo/codigo_gerado/sql
+        String criada = enviar(post("/api/campanhas"), gabriela, salvar("Campanha A6-106", "chat-a6-106", 345))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.ultima_simulacao.resultado.totais.diferenca").value(23736.10))
+                .andExpect(jsonPath("$.ultima_simulacao.resultado.codigo").doesNotExist())
+                .andExpect(jsonPath("$.ultima_simulacao.resultado.codigo_gerado").doesNotExist())
+                .andExpect(jsonPath("$.ultima_simulacao.resultado.trilha.passos[0].ferramenta").value("consultar_banco"))
+                .andExpect(jsonPath("$.ultima_simulacao.resultado.trilha.passos[0].sql").doesNotExist())
+                .andReturn().getResponse().getContentAsString();
+        long id = ((Number) JsonPath.read(criada, "$.id")).longValue();
+
+        // Submeter campanha (Gerente): congela a versão no banco com os dados completos
+        enviar(post("/api/campanhas/" + id + "/submeter"), gabriela)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ultima_simulacao.resultado.codigo").doesNotExist());
+
+        // No banco a versão congelada mantém o resultado completo
+        CampanhaVersao v1 = versaoRepository.findByCampanhaIdOrderByNumeroAsc(id).get(0);
+        assertThat(v1.getResultado()).contains("resultado = calcular(vendas)").contains("SELECT * FROM venda");
+
+        // Re-simulação concluída pelo Supervisor também com código
+        jdbc.update("""
+                INSERT INTO simulacao (id, usuario_id, chat_id, versao_id, status, ficha, resultado, codigo_gerado, criada_em, concluida_em)
+                VALUES (9106, ?, 'chat-a6-106', ?, 'CONCLUIDA', ?::jsonb, ?::jsonb, 'codigo_resim()', now(), now())
+                """, sergio.getId(), v1.getId(), FakeRegistroSimulacoes.REGRA_BLACK_FRIDAY, resultadoComCodigo);
+
+        // Gerente abrindo campanha e versão (incluindo resimulacao): sem codigo/codigo_gerado/sql
+        enviar(get("/api/campanhas/" + id), gabriela)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ultima_simulacao.resultado.totais.diferenca").value(23736.10))
+                .andExpect(jsonPath("$.ultima_simulacao.resultado.codigo").doesNotExist())
+                .andExpect(jsonPath("$.ultima_simulacao.resultado.codigo_gerado").doesNotExist())
+                .andExpect(jsonPath("$.ultima_simulacao.resultado.trilha.passos[0].sql").doesNotExist());
+
+        enviar(get("/api/campanhas/" + id + "/versoes/1"), gabriela)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultado.totais.diferenca").value(23736.10))
+                .andExpect(jsonPath("$.resultado.codigo").doesNotExist())
+                .andExpect(jsonPath("$.resultado.codigo_gerado").doesNotExist())
+                .andExpect(jsonPath("$.resultado.trilha.passos[0].sql").doesNotExist())
+                .andExpect(jsonPath("$.resimulacao.resultado.totais.diferenca").value(23736.10))
+                .andExpect(jsonPath("$.resimulacao.resultado.codigo").doesNotExist())
+                .andExpect(jsonPath("$.resimulacao.resultado.codigo_gerado").doesNotExist())
+                .andExpect(jsonPath("$.resimulacao.resultado.trilha.passos[0].sql").doesNotExist());
+
+        // Supervisor abrindo campanha e versão (incluindo resimulacao): recebe codigo/codigo_gerado/sql
+        enviar(get("/api/campanhas/" + id), sergio)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ultima_simulacao.resultado.codigo").value("resultado = calcular(vendas)"))
+                .andExpect(jsonPath("$.ultima_simulacao.resultado.codigo_gerado").value("resultado = calcular(vendas)"))
+                .andExpect(jsonPath("$.ultima_simulacao.resultado.trilha.passos[0].sql").value("SELECT * FROM venda"));
+
+        enviar(get("/api/campanhas/" + id + "/versoes/1"), sergio)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.resultado.codigo").value("resultado = calcular(vendas)"))
+                .andExpect(jsonPath("$.resultado.codigo_gerado").value("resultado = calcular(vendas)"))
+                .andExpect(jsonPath("$.resultado.trilha.passos[0].sql").value("SELECT * FROM venda"))
+                .andExpect(jsonPath("$.resimulacao.resultado.codigo").value("resultado = calcular(vendas)"))
+                .andExpect(jsonPath("$.resimulacao.resultado.codigo_gerado").value("resultado = calcular(vendas)"))
+                .andExpect(jsonPath("$.resimulacao.resultado.trilha.passos[0].sql").value("SELECT * FROM venda"));
+    }
+
+    // ---------- US-19 Auditor ----------
+
+    @Test
+    void auditorListaTodasCampanhasEmAuditoriaEGerenteContinuaVendoApenasAsProprias() throws Exception {
+        long idGabriela = salvarBlackFriday(gabriela);
+        long idSergio = submeterBlackFriday(sergio);
+
+        // Auditor vê todas as campanhas de todos os usuários
+        enviar(get("/api/campanhas/auditoria"), paulo)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)));
+
+        // Auditor pode filtrar por status em auditoria
+        enviar(get("/api/campanhas/auditoria?status=RASCUNHO"), paulo)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value(idGabriela));
+
+        // Gerente continua vendo só a própria campanha em /minhas
+        enviar(get("/api/campanhas/minhas"), gabriela)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].id").value(idGabriela));
+    }
+
+    @Test
+    void auditorConsegueLerCampanhaEVersaoDeOutroAutorComAcoesVazias() throws Exception {
+        long id = submeterBlackFriday(gabriela);
+
+        // Auditor pode abrir a campanha criada por Gabriela; acoes deve ser vazia
+        enviar(get("/api/campanhas/" + id), paulo)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.acoes", empty()));
+
+        // Auditor pode abrir a versão 1 submetida; acoes deve ser vazia
+        enviar(get("/api/campanhas/" + id + "/versoes/1"), paulo)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.numero").value(1))
+                .andExpect(jsonPath("$.acoes", empty()));
+    }
+
+    @Test
+    void auditorNaoAcessaFilaDeAprovacao() throws Exception {
+        submeterBlackFriday(gabriela);
+
+        enviar(get("/api/campanhas/fila"), paulo)
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+    }
 }
