@@ -23,6 +23,17 @@ public interface SolicitacaoAlteracaoRepository extends JpaRepository<Solicitaca
     @Query("select s from SolicitacaoAlteracao s where s.id = :id")
     Optional<SolicitacaoAlteracao> findByIdForUpdate(@Param("id") Integer id);
 
+    @EntityGraph(attributePaths = {"autor", "decisor"})
+    List<SolicitacaoAlteracao> findByAutorIdOrderByCriadaEmDesc(Integer autorId);
+
+    @Query(value = """
+            select exists(select 1 from solicitacao_alteracao
+                where matricula = :matricula and tipo = :tipo and status = 'PENDENTE'
+                and valor_depois = cast(:dados as jsonb))
+            """, nativeQuery = true)
+    boolean existsIntercorrenciaPendente(@Param("matricula") String matricula,
+                                        @Param("tipo") String tipo, @Param("dados") String dados);
+
     /** Fila do supervisor: pendentes que ele NÃO abriu, da mais antiga para a mais nova. */
     @EntityGraph(attributePaths = {"autor", "decisor"})
     List<SolicitacaoAlteracao> findByStatusAndAutorIdNotOrderByCriadaEmAsc(StatusSolicitacao status, Integer autorId);

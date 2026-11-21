@@ -52,8 +52,8 @@ import java.util.stream.Collectors;
  * <p>Regras que este serviço garante:
  * <ul>
  *   <li>Quatro Olhos: quem decide nunca é o autor, e a regra falha fechada.</li>
- *   <li>"antes" e "depois" são sempre códigos de negócio (cod_loja, cod_cargo) ou datas YYYY-MM-DD.
- *       Ids internos do banco nunca são aceitos.</li>
+ *   <li>Correções usam códigos de negócio ou datas; intercorrências usam um objeto em "depois".
+ *       Ids internos do banco nunca são aceitos como códigos de loja/cargo.</li>
  *   <li>"depois" é validado na criação, para não existir solicitação impossível de aprovar.</li>
  *   <li>A decisão serializa por solicitação e por funcionário (lock pessimista, sempre nesta ordem),
  *       então duas decisões simultâneas não se atropelam.</li>
@@ -83,6 +83,7 @@ public class SolicitacaoAlteracaoService {
     private final CargoRepository cargoRepository;
     private final ObjectMapper objectMapper;
     private final EntityManager entityManager;
+    private final IntercorrenciaRhService intercorrenciaRhService;
 
     /** Valores já normalizados, prontos para a coluna JSONB. */
     private record Valores(String antesJson, String depoisJson) {
@@ -142,17 +143,24 @@ public class SolicitacaoAlteracaoService {
         Funcionario funcionario = funcionarioRepository.findByMatricula(dto.matricula().trim())
                 .orElseThrow(() -> new BadRequestException("Matrícula não encontrada: " + dto.matricula().trim()));
 
-        if (!funcionarioLojaRepository.existsByIdFuncionarioIdAndIdDateRef(funcionario.getId(), competencia)) {
-            throw new BadRequestException(
-                    "Funcionário não possui alocação na competência informada: " + YearMonth.from(competencia));
+        Valores valores;
+        if (dto.tipo().isIntercorrenciaRh()) {
+            // O mesmo lock usado na aprovação serializa pedidos iguais para esta matrícula.
+            entityManager.refresh(funcionario, LockModeType.PESSIMISTIC_WRITE);
+            valores = new Valores("null", intercorrenciaRhService.validarCriacao(dto, funcionario.getMatricula()));
+        } else {
+            if (!funcionarioLojaRepository.existsByIdFuncionarioIdAndIdDateRef(funcionario.getId(), competencia)) {
+                throw new BadRequestException(
+                        "Funcionário não possui alocação na competência informada: " + YearMonth.from(competencia));
+            }
+            valores = switch (dto.tipo()) {
+                case TRANSFERENCIA_LOJA -> validarTransferenciaLoja(funcionario, competencia, dto);
+                case TROCA_CARGO -> validarTrocaCargo(funcionario, competencia, dto);
+                case DATA_ADMISSAO -> validarDataAdmissao(funcionario, dto);
+                case DATA_DEMISSAO -> validarDataDemissao(funcionario, dto);
+                default -> throw new IllegalStateException("Tipo de alteração não suportado");
+            };
         }
-
-        Valores valores = switch (dto.tipo()) {
-            case TRANSFERENCIA_LOJA -> validarTransferenciaLoja(funcionario, competencia, dto);
-            case TROCA_CARGO -> validarTrocaCargo(funcionario, competencia, dto);
-            case DATA_ADMISSAO -> validarDataAdmissao(funcionario, dto);
-            case DATA_DEMISSAO -> validarDataDemissao(funcionario, dto);
-        };
 
         SolicitacaoAlteracao solicitacao = SolicitacaoAlteracao.builder()
                 .tipo(dto.tipo())
@@ -309,6 +317,11 @@ public class SolicitacaoAlteracaoService {
         // Lock 2: o funcionário. refresh() relê a linha já travada, então o drift check vê o valor atual.
         entityManager.refresh(funcionario, LockModeType.PESSIMISTIC_WRITE);
 
+        if (solicitacao.getTipo().isIntercorrenciaRh()) {
+            intercorrenciaRhService.aplicar(solicitacao);
+            return;
+        }
+
         String antes = lerValor(solicitacao.getValorAntes());
         String depois = lerValor(solicitacao.getValorDepois());
         LocalDate competencia = solicitacao.getCompetencia();
@@ -384,6 +397,15 @@ public class SolicitacaoAlteracaoService {
     }
 
     // ------------------------------------------------------------------ consultas
+
+    @Transactional(readOnly = true)
+    public List<SolicitacaoDetalheResponse> listarMinhas(Usuario usuarioLogado) {
+        if (usuarioLogado == null || usuarioLogado.getId() == null) {
+            throw new AccessDeniedException(MSG_SEM_PERMISSAO);
+        }
+        return solicitacaoRepository.findByAutorIdOrderByCriadaEmDesc(usuarioLogado.getId())
+                .stream().map(this::toDetalheResponse).toList();
+    }
 
     @Transactional(readOnly = true)
     public List<SolicitacaoDetalheResponse> listarFila(Usuario supervisorLogado) {
@@ -552,7 +574,8 @@ public class SolicitacaoAlteracaoService {
                 s.getMatricula(),
                 s.getCompetencia() != null ? YearMonth.from(s.getCompetencia()).toString() : null,
                 lerValor(s.getValorAntes()),
-                lerValor(s.getValorDepois()),
+                s.getTipo().isIntercorrenciaRh()
+                        ? objectMapper.readTree(s.getValorDepois()) : lerValor(s.getValorDepois()),
                 s.getMotivo(),
                 s.getOrigem(),
                 s.getChatId(),
