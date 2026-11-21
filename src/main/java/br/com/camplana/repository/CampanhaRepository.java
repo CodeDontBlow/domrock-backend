@@ -28,4 +28,8 @@ public interface CampanhaRepository extends JpaRepository<Campanha, Long> {
     List<Campanha> findByAutorIdAndStatusOrderByAtualizadaEmDesc(Integer autorId, StatusCampanha status);
 
     List<Campanha> findByAutorIdAndStatusNotOrderByAtualizadaEmDesc(Integer autorId, StatusCampanha status);
+
+    List<Campanha> findAllByOrderByAtualizadaEmDesc();
+
+    List<Campanha> findByStatusOrderByAtualizadaEmDesc(StatusCampanha status);
 }
