@@ -42,6 +42,13 @@ public class SolicitacaoAlteracaoController {
         return ResponseEntity.ok(service.listarAuditoria(usuarioLogado));
     }
 
+    @GetMapping("/minhas")
+    public ResponseEntity<List<SolicitacaoDetalheResponse>> listarMinhas(
+            @AuthenticationPrincipal Usuario usuarioLogado
+    ) {
+        return ResponseEntity.ok(service.listarMinhas(usuarioLogado));
+    }
+
     @GetMapping("/fila")
     public ResponseEntity<List<SolicitacaoDetalheResponse>> listarFila(
             @AuthenticationPrincipal Usuario usuarioLogado
