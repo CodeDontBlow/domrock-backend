@@ -48,7 +48,7 @@ public class IntercorrenciaRhService {
         }
         String normalizado = objectMapper.writeValueAsString(objectMapper.createObjectNode()
                 .put("data_inicio", dados.inicio().toString())
-                .put("data_fim", dados.fim().toString())
+                .put("data_fim", dados.fim() == null ? null : dados.fim().toString())
                 .put("cod_loja", dados.loja()));
         if (solicitacaoRepository.existsIntercorrenciaPendente(matricula, dto.tipo().name(), normalizado)) {
             throw new ConflictException(DUPLICADA);
@@ -83,10 +83,7 @@ public class IntercorrenciaRhService {
             throw new BadRequestException("Campo desconhecido em 'depois' da intercorrência");
         }
         LocalDate inicio = data(node, "data_inicio");
-        LocalDate fim = data(node, "data_fim");
-        if (fim.isBefore(inicio)) {
-            throw new BadRequestException("Data final deve ser igual ou posterior à data inicial");
-        }
+        LocalDate fim = lerFim(tipo, node, inicio);
         String loja = texto(node, "cod_loja");
         if (tipo == TipoAlteracao.COBERTURA_LOJA && loja == null) {
             throw new BadRequestException("Loja é obrigatória para cobertura_loja");
@@ -95,6 +92,33 @@ public class IntercorrenciaRhService {
             throw new BadRequestException("cod_loja só se aplica a cobertura_loja");
         }
         return new Dados(inicio, fim, loja);
+    }
+
+    private LocalDate lerFim(TipoAlteracao tipo, JsonNode node, LocalDate inicio) {
+        if (tipo == TipoAlteracao.DEMISSAO) {
+            return fimDaDemissao(node, inicio);
+        }
+        LocalDate fim = data(node, "data_fim");
+        if (fim.isBefore(inicio)) {
+            throw new BadRequestException("Data final (" + fim + ") deve ser igual ou posterior à data inicial ("
+                    + inicio + ")");
+        }
+        return fim;
+    }
+
+    // Demissão tem uma data só (V6, dec-090): data_fim fica null, como nos eventos importados, para a
+    // checagem de duplicidade e a apuração (FonteIntercorrenciasJdbc) verem o mesmo evento.
+    // Repetir data_inicio em data_fim continua aceito, por compatibilidade com o contrato da A6-111.
+    private LocalDate fimDaDemissao(JsonNode node, LocalDate inicio) {
+        if (texto(node, "data_fim") == null) {
+            return null;
+        }
+        LocalDate fim = data(node, "data_fim");
+        if (!fim.equals(inicio)) {
+            throw new BadRequestException("Demissão tem uma data só: omita data_fim ou repita data_inicio ("
+                    + inicio + "), recebido " + fim);
+        }
+        return null;
     }
 
     private LocalDate data(JsonNode node, String campo) {

@@ -56,8 +56,8 @@ GERENTE e SUPERVISOR podem abrir; somente outro SUPERVISOR pode decidir.
 - `competencia` mantém o formato obrigatório `YYYY-MM` do envelope de solicitação.
   O período efetivo do evento é definido por `data_inicio` e `data_fim`.
 - `antes` deve ser ausente ou `null`; `depois` é um objeto, e não texto contendo JSON.
-- As duas datas são obrigatórias (`YYYY-MM-DD`), com fim igual ou posterior ao início.
-  Para registrar uma demissão pontual, informe a mesma data em ambos os campos.
+- As duas datas são obrigatórias (`YYYY-MM-DD`), com fim igual ou posterior ao início,
+  exceto em `DEMISSAO`: data única, `data_fim` omitida (ou igual ao início) e gravada `null`.
 - `cod_loja` é o código de negócio de uma loja existente, obrigatório somente em
   `COBERTURA_LOJA`. Nos outros tipos deve ser omitido ou `null`.
 - `motivo` é obrigatório e não pode ser vazio. Campos desconhecidos dentro de `depois`

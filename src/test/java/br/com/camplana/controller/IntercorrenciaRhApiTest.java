@@ -91,7 +91,7 @@ class IntercorrenciaRhApiTest {
                 .andExpect(jsonPath("$.autor.id").value(gerente.getId()))
                 .andExpect(jsonPath("$.antes").doesNotExist())
                 .andExpect(jsonPath("$.depois.data_inicio").value("2026-11-13"))
-                .andExpect(jsonPath("$.depois.data_fim").value("2026-11-20"));
+                .andExpect(jsonPath("$.depois.data_fim").value(tipo.equals("DEMISSAO") ? null : "2026-11-20"));
         decidir(id, supervisor, "APROVAR", "Conferido")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("APROVADA"))
@@ -132,10 +132,40 @@ class IntercorrenciaRhApiTest {
 
     @Test
     void periodoDeUmDiaAceito() throws Exception {
-        ObjectNode pedido = pedido("DEMISSAO");
+        ObjectNode pedido = pedido("FERIAS");
         dados(pedido).put("data_fim", "2026-11-13");
         decidir(criar(pedido, gerente), supervisor, "APROVAR", null).andExpect(status().isOk());
         assertThat(eventos()).isEqualTo(1);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"omitida", "2026-11-13"})
+    void demissaoGravaFimNuloComoAImportacao(String fim) throws Exception {
+        ObjectNode pedido = pedido("DEMISSAO");
+        if (!fim.equals("omitida")) dados(pedido).put("data_fim", fim);
+        decidir(criar(pedido, gerente), supervisor, "APROVAR", null).andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("select data_fim from evento_rh where matricula = 'RH-111'",
+                java.sql.Date.class)).isNull();
+    }
+
+    @Test
+    void demissaoComFimDiferenteDoInicioRecusada() throws Exception {
+        ObjectNode pedido = pedido("DEMISSAO");
+        dados(pedido).put("data_fim", "2026-11-20");
+        enviar(post("/api/correcoes"), gerente, pedido).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void demissaoImportadaBloqueiaDuplicata() throws Exception {
+        // Regressão: com data_fim obrigatória, a demissão importada (data_fim null) não batia com o pedido
+        // e a apuração passava a ver duas demissões da mesma matrícula.
+        jdbc.update("""
+                insert into evento_rh (matricula, tipo, data_inicio, data_fim, origem)
+                values ('RH-111', 'demissao', '2026-11-13', null, 'especificacao-importada')
+                """);
+        ObjectNode pedido = pedido("DEMISSAO");
+        dados(pedido).put("data_fim", "2026-11-13");
+        enviar(post("/api/correcoes"), gerente, pedido).andExpect(status().isConflict());
     }
 
     @ParameterizedTest
@@ -380,7 +410,9 @@ class IntercorrenciaRhApiTest {
         ObjectNode pedido = mapper.createObjectNode().put("tipo", tipo).put("matricula", "RH-111")
                 .put("competencia", "2026-11").put("motivo", "Solicitado pelo RH").put("origem", "USUARIO");
         pedido.putNull("antes");
-        ObjectNode depois = pedido.putObject("depois").put("data_inicio", "2026-11-13").put("data_fim", "2026-11-20");
+        ObjectNode depois = pedido.putObject("depois").put("data_inicio", "2026-11-13");
+        // Demissão tem uma data só (V6): sem data_fim, como nos eventos importados.
+        if (!tipo.equals("DEMISSAO")) depois.put("data_fim", "2026-11-20");
         if (tipo.equals("COBERTURA_LOJA")) depois.put("cod_loja", "RH111");
         return pedido;
     }
