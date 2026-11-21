@@ -56,11 +56,13 @@ class SolicitacaoAlteracaoControllerTest {
 
     private Usuario gabriela;
     private Usuario sergio;
+    private Usuario paulo;
 
     @BeforeEach
     void setUp() {
         gabriela = usuario(1, "Gabriela", "gabriela@camplana.com.br", Perfil.GERENTE);
         sergio = usuario(2, "Sérgio", "sergio@camplana.com.br", Perfil.SUPERVISOR);
+        paulo = usuario(5, "Paulo", "paulo@camplana.com.br", Perfil.AUDITOR);
     }
 
     @Test
@@ -244,6 +246,61 @@ class SolicitacaoAlteracaoControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(7))
                 .andExpect(jsonPath("$.descricao_origem").value("aberta pela Lana a pedido de Gabriela"));
+    }
+
+    @Test
+    void auditorPodeBuscarCorrecaoPorId() throws Exception {
+        SolicitacaoDetalheResponse detalhe = new SolicitacaoDetalheResponse(
+                7,
+                TipoAlteracao.TRANSFERENCIA_LOJA,
+                "MATRIC-38",
+                "2025-10",
+                "33",
+                "8",
+                "Mudança de loja",
+                OrigemSolicitacao.LANA,
+                "chat-01",
+                StatusSolicitacao.PENDENTE,
+                new UsuarioResumo(1, "Gabriela"),
+                LocalDateTime.now(),
+                null,
+                "aberta pela Lana a pedido de Gabriela"
+        );
+
+        when(service.buscarPorId(eq(7), any(Usuario.class))).thenReturn(detalhe);
+
+        mockMvc.perform(get("/api/correcoes/7")
+                        .header("Authorization", bearer(paulo)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(7));
+    }
+
+    @Test
+    void auditorNaoPodeCriarCorrecao() throws Exception {
+        mockMvc.perform(post("/api/correcoes")
+                        .header("Authorization", bearer(paulo))
+                        .contentType(JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+    }
+
+    @Test
+    void auditorNaoPodeDecidirCorrecao() throws Exception {
+        mockMvc.perform(post("/api/correcoes/7/decidir")
+                        .header("Authorization", bearer(paulo))
+                        .contentType(JSON)
+                        .content("{\"decisao\": \"APROVAR\", \"justificativa\": \"\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+    }
+
+    @Test
+    void auditorNaoPodeAcessarFilaDeCorrecoes() throws Exception {
+        mockMvc.perform(get("/api/correcoes/fila")
+                        .header("Authorization", bearer(paulo)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
     }
 
     private Usuario usuario(int id, String nome, String email, Perfil perfil) {

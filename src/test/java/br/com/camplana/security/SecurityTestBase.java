@@ -1,5 +1,8 @@
 package br.com.camplana.security;
 
+import br.com.camplana.campanha.CampanhaConsultaService;
+import br.com.camplana.campanha.CampanhaService;
+import br.com.camplana.campanha.ResimulacaoService;
 import br.com.camplana.client.LanaClient;
 import br.com.camplana.controller.*;
 import br.com.camplana.entity.Perfil;
@@ -28,7 +31,7 @@ import static org.mockito.Mockito.when;
 
 @WebMvcTest(
         controllers = {ChatController.class, SimulacaoController.class,
-                ImportacaoController.class, UsuarioController.class},
+                ImportacaoController.class, UsuarioController.class, CampanhaController.class},
         properties = "api.security.token.secret=segredo-de-teste-com-mais-de-32-caracteres"
 )
 @Import({SecurityConfig.class, SecurityErrorHandler.class, JwtService.class,
@@ -45,14 +48,18 @@ public abstract class SecurityTestBase {
     @MockitoBean protected ImportacaoManagerService managerService;
     @MockitoBean protected UsuarioService usuarioService;
     @MockitoBean protected UsuarioMapper usuarioMapper;
+    @MockitoBean protected CampanhaService campanhaService;
+    @MockitoBean protected CampanhaConsultaService campanhaConsultaService;
+    @MockitoBean protected ResimulacaoService resimulacaoService;
 
-    protected Usuario gabriela, sergio, ana;
+    protected Usuario gabriela, sergio, ana, paulo;
 
     @BeforeEach
     void criarUsuarios() {
         gabriela = usuario(1, "Gabriela", "gabriela@camplana.com.br", Perfil.GERENTE);
         sergio   = usuario(2, "Sérgio",   "sergio@camplana.com.br",   Perfil.SUPERVISOR);
         ana      = usuario(4, "Ana",      "ana@camplana.com.br",      Perfil.ADMIN);
+        paulo    = usuario(5, "Paulo",    "paulo@camplana.com.br",    Perfil.AUDITOR);
         when(usuarioService.listAll(any())).thenReturn(Page.empty());
     }
 
