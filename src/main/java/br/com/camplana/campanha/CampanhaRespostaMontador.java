@@ -5,10 +5,14 @@ import br.com.camplana.entity.Campanha;
 import br.com.camplana.entity.Perfil;
 import br.com.camplana.entity.CampanhaStatusLog;
 import br.com.camplana.entity.CampanhaVersao;
+import br.com.camplana.entity.Perfil;
 import br.com.camplana.entity.Simulacao;
 import br.com.camplana.entity.StatusCampanha;
 import br.com.camplana.entity.Usuario;
+import br.com.camplana.security.FiltroConteudoTecnico;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Clock;
 import java.time.LocalDate;
@@ -29,13 +33,22 @@ public class CampanhaRespostaMontador {
     private final AprovacaoDaVersao aprovacao;
     private final FonteIntercorrencias fonteIntercorrencias;
     private final Clock relogio;
+    private final FiltroConteudoTecnico filtroConteudo;
 
     public CampanhaRespostaMontador(CamposDaSimulacao campos, AprovacaoDaVersao aprovacao,
                                     FonteIntercorrencias fonteIntercorrencias, Clock relogio) {
+        this(campos, aprovacao, fonteIntercorrencias, relogio, new FiltroConteudoTecnico(new ObjectMapper()));
+    }
+
+    @Autowired
+    public CampanhaRespostaMontador(CamposDaSimulacao campos, AprovacaoDaVersao aprovacao,
+                                    FonteIntercorrencias fonteIntercorrencias, Clock relogio,
+                                    FiltroConteudoTecnico filtroConteudo) {
         this.campos = campos;
         this.aprovacao = aprovacao;
         this.fonteIntercorrencias = fonteIntercorrencias;
         this.relogio = relogio;
+        this.filtroConteudo = filtroConteudo != null ? filtroConteudo : new FiltroConteudoTecnico(new ObjectMapper());
     }
 
     /** Campanha (5.2), com as {@code acoes} de {@code leitor}. */
@@ -46,7 +59,7 @@ public class CampanhaRespostaMontador {
                 leitor.getPerfil() == Perfil.AUDITOR ? List.of()
                         : PermissoesCampanha.acoes(retrato.situacao(), leitor.getId()),
                 usuario(campanha.getAutor()), campanha.getChatId(), periodo(retrato),
-                retrato.situacao().versaoAtual(), ultimaSimulacao(retrato.ultimaSimulacao()),
+                retrato.situacao().versaoAtual(), ultimaSimulacao(retrato.ultimaSimulacao(), leitor.getPerfil()),
                 versoes(retrato), log(retrato), campanha.getCriadaEm(), campanha.getAtualizadaEm());
     }
 
@@ -93,11 +106,13 @@ public class CampanhaRespostaMontador {
         List<IntercorrenciaResponse> intercorrencias = campos.escopo(versao.getRegra())
                 .map(fonteIntercorrencias::buscarPorEscopo)
                 .orElse(List.of());
+        Perfil perfil = leitor.getPerfil();
         return new VersaoCampanhaResponse(retrato.campanha().getId(), versao.getNumero(),
                 statusDaVersao(daVersao), PermissoesVersao.acoes(situacao, leitor),
                 usuario(retrato.campanha().getAutor()), versao.getSubmetidaEm(), versao.getSimulacaoId(),
-                versao.getRegra(), versao.getResultado(), versao.getUltimaMensagemId(),
-                situacao.resimulacaoNecessaria(), aprovadasDepois(pendencias), resimulacao(pendencias),
+                versao.getRegra(), filtroConteudo.filtrarJsonString(versao.getResultado(), perfil),
+                versao.getUltimaMensagemId(),
+                situacao.resimulacaoNecessaria(), aprovadasDepois(pendencias), resimulacao(pendencias, perfil),
                 decisao(daVersao), intercorrencias);
     }
 
@@ -108,13 +123,13 @@ public class CampanhaRespostaMontador {
         }).toList();
     }
 
-    private static ResimulacaoResponse resimulacao(PendenciasDaVersao pendencias) {
+    private ResimulacaoResponse resimulacao(PendenciasDaVersao pendencias, Perfil perfil) {
         Simulacao simulacao = pendencias.resimulacao();
         if (simulacao == null) {
             return null;
         }
         return new ResimulacaoResponse(simulacao.getId(), usuario(simulacao.getUsuario()), simulacao.getConcluidaEm(),
-                simulacao.getResultado());
+                filtroConteudo.filtrarJsonString(simulacao.getResultado(), perfil));
     }
 
     private Vigencia vigencia(RetratoCampanha retrato) {
@@ -125,11 +140,12 @@ public class CampanhaRespostaMontador {
         return retrato.regraExibida().map(campos::periodo).orElse(null);
     }
 
-    private static UltimaSimulacaoResponse ultimaSimulacao(SimulacaoGravada simulacao) {
+    private UltimaSimulacaoResponse ultimaSimulacao(SimulacaoGravada simulacao, Perfil perfil) {
         if (simulacao == null) {
             return null;
         }
-        return new UltimaSimulacaoResponse(simulacao.id(), simulacao.regraJson(), simulacao.resultadoJson(),
+        return new UltimaSimulacaoResponse(simulacao.id(), simulacao.regraJson(),
+                filtroConteudo.filtrarJsonString(simulacao.resultadoJson(), perfil),
                 simulacao.concluidaEm());
     }
 
