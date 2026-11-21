@@ -15,11 +15,32 @@ class FiltroConteudoTecnicoTest {
     private final FiltroConteudoTecnico filtro = new FiltroConteudoTecnico(JSON);
 
     @Test
-    void podeVerCodigoGeradoApenasParaSupervisor() {
+    void podeVerCodigoGeradoApenasParaSupervisorEAuditor() {
         assertThat(filtro.podeVerCodigoGerado(Perfil.SUPERVISOR)).isTrue();
+        assertThat(filtro.podeVerCodigoGerado(Perfil.AUDITOR)).isTrue();
         assertThat(filtro.podeVerCodigoGerado(Perfil.GERENTE)).isFalse();
         assertThat(filtro.podeVerCodigoGerado(Perfil.ADMIN)).isFalse();
         assertThat(filtro.podeVerCodigoGerado(null)).isFalse();
+    }
+
+    @Test
+    void filtrarJsonNodeMantemCodigoDasLinhasDeQuebraERemoveOCodigoGerado() {
+        // Regressão: o filtro tirava "codigo" de por_marca/por_cargo/maiores_lojas e o Gerente via
+        // o detalhamento do custo sem o nome de cada linha.
+        JsonNode filtrado = filtro.filtrarJsonNode(JSON.readTree("""
+                {
+                  "codigo": "resultado = calcular(vendas)",
+                  "origem_codigo": "llm",
+                  "por_marca": [{"codigo": "1", "baseline": 10.0, "simulado": 12.0, "diferenca": 2.0,
+                                 "sql": "SELECT 1"}],
+                  "maiores_lojas": [{"codigo": "8", "baseline": 5.0, "simulado": 6.0, "diferenca": 1.0}]
+                }
+                """), Perfil.GERENTE);
+
+        assertThat(filtrado.has("codigo")).isFalse();
+        assertThat(filtrado.path("por_marca").path(0).path("codigo").asString()).isEqualTo("1");
+        assertThat(filtrado.path("por_marca").path(0).has("sql")).isFalse();
+        assertThat(filtrado.path("maiores_lojas").path(0).path("codigo").asString()).isEqualTo("8");
     }
 
     @Test

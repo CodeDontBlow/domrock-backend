@@ -17,6 +17,9 @@ import java.util.Set;
 public class FiltroConteudoTecnico {
 
     private static final Set<String> CHAVES_TECNICAS = Set.of("sql", "sql_executado", "codigo", "codigo_gerado");
+    // "codigo" também identifica as linhas de quebra da Lana (QuebraDimensao: por_marca, por_cargo,
+    // maiores_lojas). Nelas a chave fica, senão o Gerente vê o detalhamento do custo sem nome.
+    private static final Set<String> CHAVES_TECNICAS_EM_LINHA_DE_QUEBRA = Set.of("sql", "sql_executado", "codigo_gerado");
 
     private final ObjectMapper objectMapper;
 
@@ -25,7 +28,7 @@ public class FiltroConteudoTecnico {
     }
 
     public boolean podeVerCodigoGerado(Perfil perfil) {
-        return perfil != null && (perfil == Perfil.SUPERVISOR || "AUDITOR".equals(perfil.name()));
+        return perfil == Perfil.SUPERVISOR || perfil == Perfil.AUDITOR;
     }
 
     public JsonNode filtrarJsonNode(JsonNode node, Perfil perfil) {
@@ -48,7 +51,7 @@ public class FiltroConteudoTecnico {
 
     private void limparRecursivamente(JsonNode node) {
         if (node instanceof ObjectNode obj) {
-            obj.remove(CHAVES_TECNICAS);
+            obj.remove(ehLinhaDeQuebra(obj) ? CHAVES_TECNICAS_EM_LINHA_DE_QUEBRA : CHAVES_TECNICAS);
             for (JsonNode filho : obj) {
                 limparRecursivamente(filho);
             }
@@ -57,5 +60,9 @@ public class FiltroConteudoTecnico {
                 limparRecursivamente(item);
             }
         }
+    }
+
+    private static boolean ehLinhaDeQuebra(ObjectNode obj) {
+        return obj.has("baseline") && obj.has("simulado") && obj.has("diferenca");
     }
 }
