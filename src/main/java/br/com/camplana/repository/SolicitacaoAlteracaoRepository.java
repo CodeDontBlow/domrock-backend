@@ -23,6 +23,10 @@ public interface SolicitacaoAlteracaoRepository extends JpaRepository<Solicitaca
     @Query("select s from SolicitacaoAlteracao s where s.id = :id")
     Optional<SolicitacaoAlteracao> findByIdForUpdate(@Param("id") Integer id);
 
+    /** Auditoria: todas as solicitações, incluindo decisões, sem consultas extras por usuário. */
+    @EntityGraph(attributePaths = {"autor", "decisor"})
+    List<SolicitacaoAlteracao> findAllByOrderByCriadaEmDescIdDesc();
+
     @EntityGraph(attributePaths = {"autor", "decisor"})
     List<SolicitacaoAlteracao> findByAutorIdOrderByCriadaEmDesc(Integer autorId);
 

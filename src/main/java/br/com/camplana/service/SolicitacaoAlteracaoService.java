@@ -399,6 +399,15 @@ public class SolicitacaoAlteracaoService {
     // ------------------------------------------------------------------ consultas
 
     @Transactional(readOnly = true)
+    public List<SolicitacaoDetalheResponse> listarAuditoria(Usuario auditor) {
+        if (auditor == null || auditor.getId() == null || auditor.getPerfil() != Perfil.AUDITOR) {
+            throw new AccessDeniedException("Seu perfil não permite esta ação.");
+        }
+        return solicitacaoRepository.findAllByOrderByCriadaEmDescIdDesc()
+                .stream().map(this::toDetalheResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<SolicitacaoDetalheResponse> listarMinhas(Usuario usuarioLogado) {
         if (usuarioLogado == null || usuarioLogado.getId() == null) {
             throw new AccessDeniedException(MSG_SEM_PERMISSAO);

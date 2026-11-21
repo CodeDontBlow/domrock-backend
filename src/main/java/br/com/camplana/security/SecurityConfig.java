@@ -40,6 +40,10 @@ public class SecurityConfig {
                     // GERENTE, SUPERVISOR e AUDITOR -> LEITURA DE MENSAGENS DE CHAT
                     req.requestMatchers(HttpMethod.GET, "/api/chat/*/mensagens").hasAnyRole("GERENTE", "SUPERVISOR", "AUDITOR");
 
+                    // Auditor consulta resultados já gravados, mas não inicia simulações.
+                    req.requestMatchers(HttpMethod.GET, "/api/simulacoes/*")
+                            .hasAnyRole("GERENTE", "SUPERVISOR", "AUDITOR");
+
                     // GERENTE e SUPERVISOR -> CHAT E SIMULACOES
                     req.requestMatchers("/api/chat/**").hasAnyRole("GERENTE", "SUPERVISOR");
                     req.requestMatchers("/api/simulacoes/**").hasAnyRole("GERENTE", "SUPERVISOR");
@@ -63,6 +67,9 @@ public class SecurityConfig {
                     // SUPERVISOR -> DECIDE CORRECAO E ACESSA FILA
                     req.requestMatchers(HttpMethod.POST, "/api/correcoes/*/decidir").hasRole("SUPERVISOR");
                     req.requestMatchers("/api/correcoes/fila").hasRole("SUPERVISOR");
+
+                    // Auditoria global de correções é exclusiva do Auditor, antes do padrão geral.
+                    req.requestMatchers(HttpMethod.GET, "/api/correcoes/auditoria").hasRole("AUDITOR");
 
                     // AUDITOR, GERENTE e SUPERVISOR -> LEITURA DE CORRECOES
                     req.requestMatchers(HttpMethod.GET, "/api/correcoes/**").hasAnyRole("GERENTE", "SUPERVISOR", "AUDITOR");
