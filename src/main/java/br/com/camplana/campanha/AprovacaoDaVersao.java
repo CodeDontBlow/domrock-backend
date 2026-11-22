@@ -5,6 +5,7 @@ import br.com.camplana.entity.CampanhaVersao;
 import br.com.camplana.entity.Simulacao;
 import br.com.camplana.entity.StatusCampanha;
 import br.com.camplana.entity.StatusSimulacao;
+import br.com.camplana.entity.Usuario;
 import br.com.camplana.repository.CampanhaStatusLogRepository;
 import br.com.camplana.repository.SimulacaoRepository;
 import org.springframework.stereotype.Component;
@@ -56,6 +57,12 @@ public class AprovacaoDaVersao {
     /** O resultado sobre o qual a decisão vale: o da última re-simulação (5.9), senão o da submissão. */
     public String resultadoDecidido(CampanhaVersao versao) {
         return ultimaResimulacao(versao).map(Simulacao::getResultado).orElse(versao.getResultado());
+    }
+
+    /** Quem aprovou a versão (Campanhas Passadas); vazio se ela não foi aprovada. */
+    public Optional<Usuario> aprovador(CampanhaVersao versao) {
+        return logRepository.findFirstByVersaoIdAndParaOrderByEmAscIdAsc(versao.getId(), StatusCampanha.APROVADA)
+                .map(CampanhaStatusLog::getUsuario);
     }
 
     private Optional<Simulacao> ultimaResimulacao(CampanhaVersao versao) {

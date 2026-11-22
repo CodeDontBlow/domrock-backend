@@ -5,7 +5,6 @@ import br.com.camplana.entity.Campanha;
 import br.com.camplana.entity.Perfil;
 import br.com.camplana.entity.CampanhaStatusLog;
 import br.com.camplana.entity.CampanhaVersao;
-import br.com.camplana.entity.Perfil;
 import br.com.camplana.entity.Simulacao;
 import br.com.camplana.entity.StatusCampanha;
 import br.com.camplana.entity.Usuario;
@@ -88,14 +87,16 @@ public class CampanhaRespostaMontador {
         Campanha campanha = versao.getCampanha();
         PeriodoCampanha periodo = new PeriodoCampanha(versao.getDataInicio(), versao.getDataFim());
         Optional<EscopoCampanha> escopo = campos.escopo(versao.getRegra());
+        String resultado = aprovacao.resultadoDecidido(versao);
         return new CampanhaAprovadaResponse(campanha.getId(), campanha.getNome(), versao.getNumero(),
-                usuario(campanha.getAutor()), periodo,
+                usuario(campanha.getAutor()),
+                aprovacao.aprovador(versao).map(CampanhaRespostaMontador::usuario).orElse(null), periodo,
                 Vigencia.calcular(campanha.getStatus(), periodo, LocalDate.now(relogio)),
                 campos.pctAcrescimo(versao.getRegra()),
                 escopo.map(e -> List.copyOf(e.marcas())).orElse(List.of()),
                 escopo.map(e -> List.copyOf(e.cargos())).orElse(List.of()),
-                campos.custoAdicional(aprovacao.resultadoDecidido(versao)),
-                versao.getSubmetidaEm(), versao.getSimulacaoId());
+                campos.custoAdicional(resultado),
+                versao.getSubmetidaEm(), versao.getSimulacaoId(), campos.conflitos(resultado));
     }
 
     /** Versão congelada (5.6), com as {@code acoes} de {@code leitor}. */

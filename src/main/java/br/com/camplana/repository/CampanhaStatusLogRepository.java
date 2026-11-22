@@ -1,6 +1,7 @@
 package br.com.camplana.repository;
 
 import br.com.camplana.entity.CampanhaStatusLog;
+import br.com.camplana.entity.StatusCampanha;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Repository;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface CampanhaStatusLogRepository extends JpaRepository<CampanhaStatusLog, Long> {
@@ -17,6 +19,10 @@ public interface CampanhaStatusLogRepository extends JpaRepository<CampanhaStatu
     // id desempata linhas gravadas no mesmo instante (ex.: relógio fixo nos testes)
     @EntityGraph(attributePaths = {"usuario", "versao"})
     List<CampanhaStatusLog> findByCampanhaIdOrderByEmAscIdAsc(Long campanhaId);
+
+    /** A linha que aprovou a versão, com quem aprovou; vazia se a versão não foi aprovada. */
+    @EntityGraph(attributePaths = {"usuario"})
+    Optional<CampanhaStatusLog> findFirstByVersaoIdAndParaOrderByEmAscIdAsc(Long versaoId, StatusCampanha para);
 
     /**
      * Aprovações de outras campanhas cujo período cruza [inicio, fim], gravadas depois de {@code depoisDe}
