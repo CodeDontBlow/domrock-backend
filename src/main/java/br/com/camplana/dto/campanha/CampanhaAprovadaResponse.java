@@ -10,13 +10,15 @@ import java.util.List;
 
 /**
  * Item de {@code GET /api/campanhas/aprovadas}: uma campanha aprovada, lida da versão aprovada.
- * {@code marcas} já vem com "ALL" trocado pelas seis marcas.
+ * {@code marcas} já vem com "ALL" trocado pelas seis marcas. {@code vigencia} sai do relógio do servidor
+ * (o front só agrupa por ela) e {@code conflitos} são os da simulação sobre a qual a aprovação valeu.
  */
 public record CampanhaAprovadaResponse(
         long id,
         String nome,
         int versao,
         UsuarioResumo autor,
+        UsuarioResumo aprovador,
         PeriodoCampanha periodo,
         Vigencia vigencia,
         @JsonProperty("pct_acrescimo") JsonNode pctAcrescimo,
@@ -24,5 +26,6 @@ public record CampanhaAprovadaResponse(
         List<String> cargos,
         @JsonProperty("custo_adicional") BigDecimal custoAdicional,
         @JsonProperty("submetida_em") Instant submetidaEm,
-        @JsonProperty("simulacao_id") long simulacaoId
+        @JsonProperty("simulacao_id") long simulacaoId,
+        JsonNode conflitos
 ) {}
