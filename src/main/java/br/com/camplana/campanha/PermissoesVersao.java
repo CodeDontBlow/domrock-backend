@@ -13,11 +13,14 @@ import java.util.Optional;
  * O que o Supervisor pode fazer numa versão (contrato 5.6, 5.8 e 5.9). Como em
  * {@link PermissoesCampanha}, a mesma regra monta as {@code acoes} e barra as rotas: o front mostra os
  * botões que vierem e não deduz nada do perfil. Ordem do contrato 5.8: perfil (403), autor (403),
- * versão pendente (409) e, só para aprovar, re-simulação (409).
+ * versão pendente (409) e, só para aprovar, alerta técnico aberto (409) e re-simulação (409).
  *
  * <pre>PermissoesVersao.exigir(AcaoVersao.APROVAR, situacao, supervisor);</pre>
  */
 public final class PermissoesVersao {
+
+    public static final String MSG_ALERTA_ABERTO =
+            "Esta versão tem alerta técnico aberto. O Auditor precisa resolvê-lo antes da aprovação.";
 
     private PermissoesVersao() {
     }
@@ -45,6 +48,9 @@ public final class PermissoesVersao {
         }
         if (!situacao.pendente()) {
             return Optional.of(new ConflictException(situacao.naoPendente()));
+        }
+        if (acao == AcaoVersao.APROVAR && situacao.temAlertaAberto()) {
+            return Optional.of(new ConflictException(MSG_ALERTA_ABERTO));
         }
         if (acao == AcaoVersao.APROVAR && situacao.resimulacaoNecessaria()) {
             return Optional.of(new ConflictException("Simule de novo antes de aprovar"));

@@ -1,12 +1,15 @@
 package br.com.camplana.service;
 
+import br.com.camplana.campanha.AlertaTecnicoService;
 import br.com.camplana.client.LanaSimulacaoClient;
 import br.com.camplana.campanha.ContextoCampanhasService;
 import br.com.camplana.entity.EtapaSimulacao;
 import br.com.camplana.exception.LanaIndisponivelException;
 import br.com.camplana.exception.LanaRespostaException;
+import br.com.camplana.repository.SimulacaoRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
@@ -36,14 +39,27 @@ public class SimulacaoJobService {
     private final LanaSimulacaoClient lanaSimulacaoClient;
     private final ObjectMapper objectMapper;
     private final ContextoCampanhasService contextoCampanhas;
+    private final SimulacaoRepository simulacaoRepository;
+    private final AlertaTecnicoService alertaTecnicoService;
 
     public SimulacaoJobService(SimulacaoPersistenceService persistenceService,
                                LanaSimulacaoClient lanaSimulacaoClient,
                                ObjectMapper objectMapper, ContextoCampanhasService contextoCampanhas) {
+        this(persistenceService, lanaSimulacaoClient, objectMapper, contextoCampanhas, null, null);
+    }
+
+    @Autowired
+    public SimulacaoJobService(SimulacaoPersistenceService persistenceService,
+                               LanaSimulacaoClient lanaSimulacaoClient,
+                               ObjectMapper objectMapper, ContextoCampanhasService contextoCampanhas,
+                               SimulacaoRepository simulacaoRepository,
+                               AlertaTecnicoService alertaTecnicoService) {
         this.persistenceService = persistenceService;
         this.lanaSimulacaoClient = lanaSimulacaoClient;
         this.objectMapper = objectMapper;
         this.contextoCampanhas = contextoCampanhas;
+        this.simulacaoRepository = simulacaoRepository;
+        this.alertaTecnicoService = alertaTecnicoService;
     }
 
     @Async
@@ -83,6 +99,14 @@ public class SimulacaoJobService {
                 extrairTentativas(resposta),
                 duracaoMs
         );
+        if (alertaTecnicoService != null && simulacaoRepository != null) {
+            simulacaoRepository.findById(simulacaoId).ifPresent(sim -> {
+                if (sim.getVersao() != null) {
+                    alertaTecnicoService.gravarAlertasAutomaticos(
+                            sim.getVersao().getCampanha(), sim.getVersao().getNumero(), resposta);
+                }
+            });
+        }
         log.info("Simulação #{} concluída com sucesso em {} ms", simulacaoId, duracaoMs);
     }
 

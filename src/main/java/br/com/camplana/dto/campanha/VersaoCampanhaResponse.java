@@ -9,8 +9,8 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * A versão congelada (contrato 5.6), com as {@code acoes} de quem está vendo, a re-simulação pendente
- * e as aprovações do período depois da submissão (A6-68).
+ * A versão congelada (contrato 5.6), com as {@code acoes} de quem está vendo, a re-simulação pendente,
+ * as aprovações do período depois da submissão (A6-68) e alertas técnicos (A6-95).
  */
 public record VersaoCampanhaResponse(
         @JsonProperty("campanha_id") long campanhaId,
@@ -27,5 +27,15 @@ public record VersaoCampanhaResponse(
         @JsonProperty("aprovadas_depois") List<AprovadaDepoisResponse> aprovadasDepois,
         ResimulacaoResponse resimulacao,
         DecisaoResponse decisao,
-        @JsonProperty("intercorrencias") List<IntercorrenciaResponse> intercorrencias
-) {}
+        @JsonProperty("intercorrencias") List<IntercorrenciaResponse> intercorrencias,
+        List<AlertaTecnicoResponse> alertas
+) {
+    public VersaoCampanhaResponse(long campanhaId, int numero, StatusCampanha status, List<AcaoVersao> acoes,
+                                  UsuarioResumo autor, Instant submetidaEm, long simulacaoId, String regra,
+                                  String resultado, Long ultimaMensagemId, boolean resimulacaoNecessaria,
+                                  List<AprovadaDepoisResponse> aprovadasDepois, ResimulacaoResponse resimulacao,
+                                  DecisaoResponse decisao, List<IntercorrenciaResponse> intercorrencias) {
+        this(campanhaId, numero, status, acoes, autor, submetidaEm, simulacaoId, regra, resultado,
+                ultimaMensagemId, resimulacaoNecessaria, aprovadasDepois, resimulacao, decisao, intercorrencias, List.of());
+    }
+}

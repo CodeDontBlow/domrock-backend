@@ -6,14 +6,20 @@ package br.com.camplana.campanha;
  * @param naoPendente            por que a versão não aguarda decisão (a mensagem do 409), ou {@code null}
  * @param resimulacaoNecessaria  outra campanha do período foi aprovada depois da submissão e não houve
  *                               re-simulação depois dela
+ * @param temAlertaAberto        existe ao menos um alerta técnico ABERTO nesta versão (A6-95)
  */
 public record SituacaoVersao(
         long campanhaId,
         int numero,
         int autorId,
         String naoPendente,
-        boolean resimulacaoNecessaria
+        boolean resimulacaoNecessaria,
+        boolean temAlertaAberto
 ) {
+
+    public SituacaoVersao(long campanhaId, int numero, int autorId, String naoPendente, boolean resimulacaoNecessaria) {
+        this(campanhaId, numero, autorId, naoPendente, resimulacaoNecessaria, false);
+    }
 
     public boolean pendente() {
         return naoPendente == null;

@@ -268,6 +268,45 @@ class   SecurityPorPerfilTest extends SecurityTestBase {
         verifyNoInteractions(managerService);
     }
 
+    // ---------- /api/campanhas/{id}/versoes/{numero}/alertas ----------
+    @Test void listarAlertasAuditorESupervisorPermitidoGerenteNegado() throws Exception {
+        mockMvc.perform(get("/api/campanhas/1/versoes/1/alertas").header("Authorization", bearer(paulo)))
+                .andExpect(liberado());
+        mockMvc.perform(get("/api/campanhas/1/versoes/1/alertas").header("Authorization", bearer(sergio)))
+                .andExpect(liberado());
+        mockMvc.perform(get("/api/campanhas/1/versoes/1/alertas").header("Authorization", bearer(gabriela)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+    }
+
+    @Test void abrirAlertaAuditorPermitidoSupervisorEGerenteNegado() throws Exception {
+        mockMvc.perform(post("/api/campanhas/1/versoes/1/alertas").header("Authorization", bearer(paulo))
+                        .contentType(JSON).content("{\"descricao\":\"teste\"}"))
+                .andExpect(liberado());
+        mockMvc.perform(post("/api/campanhas/1/versoes/1/alertas").header("Authorization", bearer(sergio))
+                        .contentType(JSON).content("{\"descricao\":\"teste\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+        mockMvc.perform(post("/api/campanhas/1/versoes/1/alertas").header("Authorization", bearer(gabriela))
+                        .contentType(JSON).content("{\"descricao\":\"teste\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+    }
+
+    @Test void resolverAlertaAuditorPermitidoSupervisorEGerenteNegado() throws Exception {
+        mockMvc.perform(post("/api/campanhas/1/versoes/1/alertas/1/resolver").header("Authorization", bearer(paulo))
+                        .contentType(JSON).content("{\"justificativa\":\"ok\"}"))
+                .andExpect(liberado());
+        mockMvc.perform(post("/api/campanhas/1/versoes/1/alertas/1/resolver").header("Authorization", bearer(sergio))
+                        .contentType(JSON).content("{\"justificativa\":\"ok\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+        mockMvc.perform(post("/api/campanhas/1/versoes/1/alertas/1/resolver").header("Authorization", bearer(gabriela))
+                        .contentType(JSON).content("{\"justificativa\":\"ok\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+    }
+
     // ---------- rota não mapeada: denyAll ----------
     @Test void rotaNaoMapeadaEhNegadaParaTodos() throws Exception {
         mockMvc.perform(get("/api/qualquer-coisa").header("Authorization", bearer(ana)))

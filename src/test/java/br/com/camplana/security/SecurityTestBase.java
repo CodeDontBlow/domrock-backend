@@ -1,5 +1,6 @@
 package br.com.camplana.security;
 
+import br.com.camplana.campanha.AlertaTecnicoService;
 import br.com.camplana.campanha.CampanhaConsultaService;
 import br.com.camplana.campanha.CampanhaService;
 import br.com.camplana.campanha.ResimulacaoService;
@@ -51,6 +52,7 @@ public abstract class SecurityTestBase {
     @MockitoBean protected CampanhaService campanhaService;
     @MockitoBean protected CampanhaConsultaService campanhaConsultaService;
     @MockitoBean protected ResimulacaoService resimulacaoService;
+    @MockitoBean protected AlertaTecnicoService alertaTecnicoService;
 
     protected Usuario gabriela, sergio, ana, paulo;
 

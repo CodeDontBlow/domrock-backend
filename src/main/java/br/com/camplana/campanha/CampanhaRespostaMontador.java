@@ -10,6 +10,7 @@ import br.com.camplana.entity.Simulacao;
 import br.com.camplana.entity.StatusCampanha;
 import br.com.camplana.entity.Usuario;
 import br.com.camplana.security.FiltroConteudoTecnico;
+import br.com.camplana.repository.AlertaTecnicoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
@@ -34,21 +35,30 @@ public class CampanhaRespostaMontador {
     private final FonteIntercorrencias fonteIntercorrencias;
     private final Clock relogio;
     private final FiltroConteudoTecnico filtroConteudo;
+    private final AlertaTecnicoRepository alertaRepository;
 
     public CampanhaRespostaMontador(CamposDaSimulacao campos, AprovacaoDaVersao aprovacao,
                                     FonteIntercorrencias fonteIntercorrencias, Clock relogio) {
-        this(campos, aprovacao, fonteIntercorrencias, relogio, new FiltroConteudoTecnico(new ObjectMapper()));
+        this(campos, aprovacao, fonteIntercorrencias, relogio, new FiltroConteudoTecnico(new ObjectMapper()), null);
+    }
+
+    public CampanhaRespostaMontador(CamposDaSimulacao campos, AprovacaoDaVersao aprovacao,
+                                    FonteIntercorrencias fonteIntercorrencias, Clock relogio,
+                                    FiltroConteudoTecnico filtroConteudo) {
+        this(campos, aprovacao, fonteIntercorrencias, relogio, filtroConteudo, null);
     }
 
     @Autowired
     public CampanhaRespostaMontador(CamposDaSimulacao campos, AprovacaoDaVersao aprovacao,
                                     FonteIntercorrencias fonteIntercorrencias, Clock relogio,
-                                    FiltroConteudoTecnico filtroConteudo) {
+                                    FiltroConteudoTecnico filtroConteudo,
+                                    AlertaTecnicoRepository alertaRepository) {
         this.campos = campos;
         this.aprovacao = aprovacao;
         this.fonteIntercorrencias = fonteIntercorrencias;
         this.relogio = relogio;
         this.filtroConteudo = filtroConteudo != null ? filtroConteudo : new FiltroConteudoTecnico(new ObjectMapper());
+        this.alertaRepository = alertaRepository;
     }
 
     /** Campanha (5.2), com as {@code acoes} de {@code leitor}. */
@@ -107,13 +117,17 @@ public class CampanhaRespostaMontador {
                 .map(fonteIntercorrencias::buscarPorEscopo)
                 .orElse(List.of());
         Perfil perfil = leitor.getPerfil();
+        List<AlertaTecnicoResponse> alertas = alertaRepository != null
+                ? alertaRepository.findByCampanhaIdAndNumeroVersaoOrderByIdAsc(retrato.campanha().getId(), versao.getNumero())
+                        .stream().map(AlertaTecnicoResponse::from).toList()
+                : List.of();
         return new VersaoCampanhaResponse(retrato.campanha().getId(), versao.getNumero(),
                 statusDaVersao(daVersao), PermissoesVersao.acoes(situacao, leitor),
                 usuario(retrato.campanha().getAutor()), versao.getSubmetidaEm(), versao.getSimulacaoId(),
                 versao.getRegra(), filtroConteudo.filtrarJsonString(versao.getResultado(), perfil),
                 versao.getUltimaMensagemId(),
                 situacao.resimulacaoNecessaria(), aprovadasDepois(pendencias), resimulacao(pendencias, perfil),
-                decisao(daVersao), intercorrencias);
+                decisao(daVersao), intercorrencias, alertas);
     }
 
     private static List<AprovadaDepoisResponse> aprovadasDepois(PendenciasDaVersao pendencias) {

@@ -3,10 +3,13 @@ package br.com.camplana.campanha;
 import br.com.camplana.entity.CampanhaStatusLog;
 import br.com.camplana.entity.CampanhaVersao;
 import br.com.camplana.entity.Simulacao;
+import br.com.camplana.entity.StatusAlerta;
 import br.com.camplana.entity.StatusCampanha;
 import br.com.camplana.entity.StatusSimulacao;
+import br.com.camplana.repository.AlertaTecnicoRepository;
 import br.com.camplana.repository.CampanhaStatusLogRepository;
 import br.com.camplana.repository.SimulacaoRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.ZoneId;
@@ -16,7 +19,8 @@ import java.util.Optional;
 
 /**
  * Lê o que pesa na decisão de uma versão (contrato 5.6 e 5.8): se ela ainda aguarda, que outras
- * campanhas do período foram aprovadas depois da submissão e a última re-simulação (5.9).
+ * campanhas do período foram aprovadas depois da submissão e a última re-simulação (5.9), além de
+ * alertas técnicos abertos (A6-95).
  *
  * <pre>
  * PendenciasDaVersao pendencias = aprovacao.pendencias(retrato, versao);
@@ -32,10 +36,18 @@ public class AprovacaoDaVersao {
 
     private final CampanhaStatusLogRepository logRepository;
     private final SimulacaoRepository simulacaoRepository;
+    private final AlertaTecnicoRepository alertaRepository;
 
     public AprovacaoDaVersao(CampanhaStatusLogRepository logRepository, SimulacaoRepository simulacaoRepository) {
+        this(logRepository, simulacaoRepository, null);
+    }
+
+    @Autowired
+    public AprovacaoDaVersao(CampanhaStatusLogRepository logRepository, SimulacaoRepository simulacaoRepository,
+                             AlertaTecnicoRepository alertaRepository) {
         this.logRepository = logRepository;
         this.simulacaoRepository = simulacaoRepository;
+        this.alertaRepository = alertaRepository;
     }
 
     public PendenciasDaVersao pendencias(RetratoCampanha retrato, CampanhaVersao versao) {
@@ -48,9 +60,12 @@ public class AprovacaoDaVersao {
     }
 
     public SituacaoVersao situacao(RetratoCampanha retrato, CampanhaVersao versao, PendenciasDaVersao pendencias) {
+        boolean temAlertaAberto = alertaRepository != null
+                && alertaRepository.existsByCampanhaIdAndNumeroVersaoAndStatus(
+                        retrato.campanha().getId(), versao.getNumero(), StatusAlerta.ABERTO);
         return new SituacaoVersao(retrato.campanha().getId(), versao.getNumero(),
                 retrato.campanha().getAutor().getId(), naoPendente(retrato, versao),
-                pendencias.resimulacaoNecessaria());
+                pendencias.resimulacaoNecessaria(), temAlertaAberto);
     }
 
     /** O resultado sobre o qual a decisão vale: o da última re-simulação (5.9), senão o da submissão. */

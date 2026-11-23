@@ -28,6 +28,10 @@ public interface CampanhaVersaoRepository extends JpaRepository<CampanhaVersao, 
 
     List<CampanhaVersao> findByCampanhaIdOrderByNumeroAsc(Long campanhaId);
 
+    java.util.Optional<CampanhaVersao> findByCampanhaIdAndNumero(Long campanhaId, int numero);
+
+    java.util.Optional<CampanhaVersao> findTopByCampanhaIdOrderByNumeroDesc(Long campanhaId);
+
     boolean existsByCampanhaId(Long campanhaId);
 
     /** Campanhas Passadas: a última versão de cada campanha no status pedido, do início mais recente. */
