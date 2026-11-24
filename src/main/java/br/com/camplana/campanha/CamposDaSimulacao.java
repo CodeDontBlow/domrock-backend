@@ -86,6 +86,12 @@ public class CamposDaSimulacao {
         return objectMapper.readTree(resultadoJson).path("conflitos").size();
     }
 
+    /** O array {@code conflitos} do resultado (campanhas com período sobreposto); vazio se a Lana não mandou. */
+    public JsonNode conflitos(String resultadoJson) {
+        JsonNode conflitos = objectMapper.readTree(resultadoJson).path("conflitos");
+        return conflitos.isArray() ? conflitos : objectMapper.createArrayNode();
+    }
+
     private Optional<PeriodoCampanha> lerPeriodo(JsonNode regra) {
         JsonNode valor = parametro(regra, "periodo").path("value");
         if (!valor.hasNonNull("data_inicio") || !valor.hasNonNull("data_fim")) {
