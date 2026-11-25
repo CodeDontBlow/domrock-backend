@@ -94,7 +94,7 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource(
-            @Value("${cors.allowed-origins:http://localhost:5173}") String allowedOrigins) {
+            @Value("${cors.allowed-origins:http://localhost:5173,https://camplana.vercel.app,https://domrock-frontend-homolog.vercel.app}") String allowedOrigins) {
         CorsConfiguration config = new CorsConfiguration();
         List<String> origins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
