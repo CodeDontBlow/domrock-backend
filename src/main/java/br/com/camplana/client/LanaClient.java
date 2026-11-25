@@ -6,24 +6,50 @@ import br.com.camplana.grpc.InvokeResponse;
 import br.com.camplana.service.IaGrpcClientService;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 /**
- * Chat com a Lana (agente de IA) por gRPC (A6-53). O Spring é a porta única do front e devolve
- * o mesmo contrato do antigo POST /agent/invoke: chat_id, response, events e regra.
+ * Chat com a Lana (agente de IA) por gRPC (A6-53) ou HTTP (/agent/invoke quando
+ * lana.chat.transport=http, útil em PaaS sem suporte a gRPC raw entre serviços).
  * A simulação continua em HTTP: {@link LanaSimulacaoClient}.
  * Ex.: lanaClient.invocarAgente(Map.of("chat_id", "c1", "message", "oi"))
  */
 @Component
-@RequiredArgsConstructor
 public class LanaClient {
+
+    private static final String CAMINHO_HTTP = "/agent/invoke";
 
     private final IaGrpcClientService iaGrpcClientService;
     private final ObjectMapper objectMapper;
+    private final RestClient restClient;
+    private final String chatTransport;
+
+    public LanaClient(IaGrpcClientService iaGrpcClientService, ObjectMapper objectMapper) {
+        this(iaGrpcClientService, objectMapper, null, "", "grpc");
+    }
+
+    @Autowired
+    public LanaClient(
+            IaGrpcClientService iaGrpcClientService,
+            ObjectMapper objectMapper,
+            @Autowired(required = false) RestClient.Builder restClientBuilder,
+            @Value("${lana.url:}") String lanaUrl,
+            @Value("${lana.chat.transport:grpc}") String chatTransport) {
+        this.iaGrpcClientService = iaGrpcClientService;
+        this.objectMapper = objectMapper;
+        this.chatTransport = chatTransport != null ? chatTransport.trim().toLowerCase() : "grpc";
+        RestClient.Builder builder = restClientBuilder != null ? restClientBuilder : RestClient.builder();
+        this.restClient = (lanaUrl != null && !lanaUrl.isBlank()) ? builder.baseUrl(lanaUrl).build() : null;
+    }
 
     public JsonNode invocarAgente(Object corpo) {
         return invocarAgente(corpo, "");
@@ -34,8 +60,38 @@ public class LanaClient {
         String chatId = pedido.hasNonNull("chat_id") ? pedido.get("chat_id").asString() : "default";
         String mensagem = pedido.hasNonNull("message") ? pedido.get("message").asString() : "";
         String historico = historicoJson != null ? historicoJson : "";
+        if ("http".equals(chatTransport)) {
+            return chamarViaHttp(chatId, mensagem, pedido.path("regra"), historico);
+        }
         InvokeResponse resposta = chamar(mensagem, chatId, regraEmJson(pedido), historico);
         return montarResposta(chatId, resposta);
+    }
+
+    private JsonNode chamarViaHttp(String chatId, String mensagem, JsonNode regra, String historicoJson) {
+        if (restClient == null) {
+            throw new LanaIndisponivelException("LANA_URL não configurada para transporte HTTP do chat.");
+        }
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("chat_id", chatId);
+        payload.put("message", mensagem);
+        if (regra.isObject()) {
+            payload.set("regra", regra);
+        }
+        if (!historicoJson.isBlank()) {
+            payload.set("historico", objectMapper.readTree(historicoJson));
+        }
+        try {
+            return restClient.post()
+                    .uri(CAMINHO_HTTP)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (RestClientResponseException e) {
+            throw new LanaRespostaException(e.getStatusCode().value(), e.getResponseBodyAsString());
+        } catch (ResourceAccessException e) {
+            throw new LanaIndisponivelException("Lana indisponível em " + CAMINHO_HTTP + ": " + e.getMessage());
+        }
     }
 
     // A ficha editada no painel vai junto, para o agente partir dela; sem ficha, "".
