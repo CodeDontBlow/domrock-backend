@@ -4,6 +4,7 @@ import br.com.camplana.TestcontainersConfiguration;
 import br.com.camplana.entity.CampanhaVersao;
 import br.com.camplana.entity.StatusCampanha;
 import br.com.camplana.entity.Usuario;
+import br.com.camplana.repository.AlertaTecnicoRepository;
 import br.com.camplana.repository.CampanhaRepository;
 import br.com.camplana.repository.CampanhaVersaoRepository;
 import br.com.camplana.repository.MensagemChatRepository;
@@ -51,6 +52,7 @@ public abstract class CampanhaApiBase {
     @Autowired protected UsuarioRepository usuarioRepository;
     @Autowired protected CampanhaRepository campanhaRepository;
     @Autowired protected CampanhaVersaoRepository versaoRepository;
+    @Autowired protected AlertaTecnicoRepository alertaRepository;
     @Autowired protected MensagemChatRepository mensagemChatRepository;
     @Autowired protected FakeRegistroSimulacoes simulacoes;
     @Autowired protected ContextoCampanhasService contextoCampanhas;
@@ -62,6 +64,7 @@ public abstract class CampanhaApiBase {
     void limparCampanhas() {
         limparResimulacoes();
         jdbc.execute("DELETE FROM evento_rh");
+        jdbc.execute("DELETE FROM alerta_tecnico");
         jdbc.execute("DELETE FROM campanha_status_log");
         jdbc.execute("DELETE FROM campanha_versao");
         jdbc.execute("DELETE FROM campanha");

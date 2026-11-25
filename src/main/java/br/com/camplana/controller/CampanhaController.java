@@ -1,5 +1,6 @@
 package br.com.camplana.controller;
 
+import br.com.camplana.campanha.AlertaTecnicoService;
 import br.com.camplana.campanha.CampanhaConsultaService;
 import br.com.camplana.campanha.CampanhaService;
 import br.com.camplana.campanha.ResimulacaoService;
@@ -22,12 +23,14 @@ public class CampanhaController {
     private final CampanhaService campanhaService;
     private final CampanhaConsultaService consulta;
     private final ResimulacaoService resimulacao;
+    private final AlertaTecnicoService alertaTecnicoService;
 
     public CampanhaController(CampanhaService campanhaService, CampanhaConsultaService consulta,
-                              ResimulacaoService resimulacao) {
+                              ResimulacaoService resimulacao, AlertaTecnicoService alertaTecnicoService) {
         this.campanhaService = campanhaService;
         this.consulta = consulta;
         this.resimulacao = resimulacao;
+        this.alertaTecnicoService = alertaTecnicoService;
     }
 
     @PostMapping
@@ -66,6 +69,27 @@ public class CampanhaController {
     public VersaoCampanhaResponse versao(@PathVariable long id, @PathVariable int numero,
                                          @AuthenticationPrincipal Usuario usuario) {
         return consulta.versao(id, numero, usuario);
+    }
+
+    @GetMapping("/{id}/versoes/{numero}/alertas")
+    public List<AlertaTecnicoResponse> listarAlertas(@PathVariable long id, @PathVariable int numero,
+                                                    @AuthenticationPrincipal Usuario usuario) {
+        return alertaTecnicoService.listar(id, numero, usuario);
+    }
+
+    @PostMapping("/{id}/versoes/{numero}/alertas")
+    public ResponseEntity<AlertaTecnicoResponse> abrirAlerta(@PathVariable long id, @PathVariable int numero,
+                                                             @Valid @RequestBody CriarAlertaRequest pedido,
+                                                             @AuthenticationPrincipal Usuario usuario) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(alertaTecnicoService.abrir(id, numero, pedido, usuario));
+    }
+
+    @PostMapping("/{id}/versoes/{numero}/alertas/{alertaId}/resolver")
+    public AlertaTecnicoResponse resolverAlerta(@PathVariable long id, @PathVariable int numero,
+                                                @PathVariable long alertaId,
+                                                @RequestBody(required = false) ResolverAlertaRequest pedido,
+                                                @AuthenticationPrincipal Usuario usuario) {
+        return alertaTecnicoService.resolver(id, numero, alertaId, pedido, usuario);
     }
 
     @PutMapping("/{id}")

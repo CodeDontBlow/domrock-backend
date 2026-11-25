@@ -52,6 +52,13 @@ public class SecurityConfig {
                     req.requestMatchers(HttpMethod.POST, "/api/campanhas/*/decidir").hasRole("SUPERVISOR");
                     req.requestMatchers(HttpMethod.POST, "/api/campanhas/*/versoes/*/resimular").hasRole("SUPERVISOR");
 
+                    // AUDITOR -> ABRE E RESOLVE ALERTA TECNICO (Supervisor recebe 403)
+                    req.requestMatchers(HttpMethod.POST, "/api/campanhas/*/versoes/*/alertas").hasRole("AUDITOR");
+                    req.requestMatchers(HttpMethod.POST, "/api/campanhas/*/versoes/*/alertas/*/resolver").hasRole("AUDITOR");
+
+                    // SUPERVISOR e AUDITOR -> LISTA ALERTAS DA VERSAO (Gerente recebe 403)
+                    req.requestMatchers(HttpMethod.GET, "/api/campanhas/*/versoes/*/alertas").hasAnyRole("SUPERVISOR", "AUDITOR");
+
                     // SUPERVISOR -> FILA DE APROVACAO (antes do /** abaixo: vale a primeira linha que casa)
                     req.requestMatchers(HttpMethod.GET, "/api/campanhas/fila").hasRole("SUPERVISOR");
 

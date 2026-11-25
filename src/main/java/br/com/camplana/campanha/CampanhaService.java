@@ -45,12 +45,24 @@ public class CampanhaService {
     private final CamposDaSimulacao campos;
     private final AprovacaoDaVersao aprovacao;
     private final Clock relogio;
+    private final AlertaTecnicoService alertaTecnicoService;
 
     public CampanhaService(CampanhaRepository campanhaRepository, CampanhaVersaoRepository versaoRepository,
                            MensagemChatRepository mensagemChatRepository,
                            RegistroSimulacoes registroSimulacoes, TrocaDeStatusCampanha trocaDeStatus,
                            CarregadorRetratoCampanha carregador, CampanhaRespostaMontador montador,
                            CamposDaSimulacao campos, AprovacaoDaVersao aprovacao, Clock relogio) {
+        this(campanhaRepository, versaoRepository, mensagemChatRepository, registroSimulacoes, trocaDeStatus,
+                carregador, montador, campos, aprovacao, relogio, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public CampanhaService(CampanhaRepository campanhaRepository, CampanhaVersaoRepository versaoRepository,
+                           MensagemChatRepository mensagemChatRepository,
+                           RegistroSimulacoes registroSimulacoes, TrocaDeStatusCampanha trocaDeStatus,
+                           CarregadorRetratoCampanha carregador, CampanhaRespostaMontador montador,
+                           CamposDaSimulacao campos, AprovacaoDaVersao aprovacao, Clock relogio,
+                           AlertaTecnicoService alertaTecnicoService) {
         this.campanhaRepository = campanhaRepository;
         this.versaoRepository = versaoRepository;
         this.mensagemChatRepository = mensagemChatRepository;
@@ -61,6 +73,7 @@ public class CampanhaService {
         this.campos = campos;
         this.aprovacao = aprovacao;
         this.relogio = relogio;
+        this.alertaTecnicoService = alertaTecnicoService;
     }
 
     /** Salva a conversa simulada como campanha em RASCUNHO. A ficha e o resultado ficam na simulação. */
@@ -99,6 +112,9 @@ public class CampanhaService {
         msg = mensagemChatRepository.save(msg);
 
         CampanhaVersao versao = versaoRepository.save(congelar(retrato, msg.getId()));
+        if (alertaTecnicoService != null) {
+            alertaTecnicoService.gravarAlertasAutomaticos(campanha, versao.getNumero(), versao.getResultado());
+        }
         trocaDeStatus.trocar(campanha, StatusCampanha.AGUARDANDO_APROVACAO, autor, versao, null);
         return montador.campanha(carregador.carregar(campanha), autor);
     }

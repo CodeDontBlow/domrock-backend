@@ -1,5 +1,6 @@
 package br.com.camplana.service;
 
+import br.com.camplana.campanha.AlertaTecnicoService;
 import br.com.camplana.client.LanaClient;
 import br.com.camplana.dto.ChatRequest;
 import br.com.camplana.entity.Campanha;
@@ -46,6 +47,7 @@ public class ChatService {
     private final ObjectMapper objectMapper;
     private final Clock relogio;
     private final FiltroConteudoTecnico filtroConteudo;
+    private final AlertaTecnicoService alertaTecnicoService;
 
     public ChatService(LanaClient lanaClient,
                        MensagemChatRepository mensagemChatRepository,
@@ -57,7 +59,21 @@ public class ChatService {
                        Optional<Clock> relogio) {
         this(lanaClient, mensagemChatRepository, simulacaoRepository, campanhaRepository,
                 campanhaVersaoRepository, transactionTemplate, objectMapper, relogio,
-                new FiltroConteudoTecnico(objectMapper));
+                new FiltroConteudoTecnico(objectMapper), null);
+    }
+
+    public ChatService(LanaClient lanaClient,
+                       MensagemChatRepository mensagemChatRepository,
+                       SimulacaoRepository simulacaoRepository,
+                       CampanhaRepository campanhaRepository,
+                       CampanhaVersaoRepository campanhaVersaoRepository,
+                       TransactionTemplate transactionTemplate,
+                       ObjectMapper objectMapper,
+                       Optional<Clock> relogio,
+                       FiltroConteudoTecnico filtroConteudo) {
+        this(lanaClient, mensagemChatRepository, simulacaoRepository, campanhaRepository,
+                campanhaVersaoRepository, transactionTemplate, objectMapper, relogio,
+                filtroConteudo, Optional.empty());
     }
 
     @Autowired
@@ -69,7 +85,8 @@ public class ChatService {
                        TransactionTemplate transactionTemplate,
                        ObjectMapper objectMapper,
                        Optional<Clock> relogio,
-                       FiltroConteudoTecnico filtroConteudo) {
+                       FiltroConteudoTecnico filtroConteudo,
+                       Optional<AlertaTecnicoService> alertaTecnicoService) {
         this.lanaClient = lanaClient;
         this.mensagemChatRepository = mensagemChatRepository;
         this.simulacaoRepository = simulacaoRepository;
@@ -79,6 +96,7 @@ public class ChatService {
         this.objectMapper = objectMapper;
         this.relogio = relogio.orElseGet(Clock::systemUTC);
         this.filtroConteudo = filtroConteudo != null ? filtroConteudo : new FiltroConteudoTecnico(objectMapper);
+        this.alertaTecnicoService = alertaTecnicoService.orElse(null);
     }
 
     public JsonNode conversar(ChatRequest pedido, Usuario usuario) {
@@ -91,6 +109,7 @@ public class ChatService {
 
         JsonNode respostaLana = lanaClient.invocarAgente(pedido, historicoJson);
         salvarTurnoEmTransacao(chatId, usuario, pedido.message(), respostaLana);
+        gravarAlertasSeCampanhaVersaoExiste(chatId, respostaLana);
 
         List<MensagemChat> novasSistema = buscarMensagensSistema(chatId, ultimoUsuarioMsgId);
         anexarMensagensSistema(respostaLana, novasSistema, usuario.getPerfil());
@@ -188,6 +207,21 @@ public class ChatService {
                     respostaLana.path("response").asString(), regraJson, trilhaJson, agora
             );
             mensagemChatRepository.save(msgLana);
+        });
+    }
+
+    private void gravarAlertasSeCampanhaVersaoExiste(String chatId, JsonNode respostaLana) {
+        if (alertaTecnicoService == null || respostaLana == null || !respostaLana.has("alertas")) {
+            return;
+        }
+        JsonNode alertas = respostaLana.path("alertas");
+        if (alertas.isMissingNode() || alertas.isNull() || alertas.isEmpty()) {
+            return;
+        }
+        campanhaRepository.findByChatId(chatId).ifPresent(campanha -> {
+            campanhaVersaoRepository.findTopByCampanhaIdOrderByNumeroDesc(campanha.getId()).ifPresent(v -> {
+                alertaTecnicoService.gravarAlertasAutomaticos(campanha, v.getNumero(), alertas);
+            });
         });
     }
 

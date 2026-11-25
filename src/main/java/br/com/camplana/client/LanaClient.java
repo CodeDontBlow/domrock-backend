@@ -79,6 +79,7 @@ public class LanaClient {
         corpo.set("events", lerJson(resposta.getEventsJson(), objectMapper.createArrayNode()));
         corpo.set("regra", lerJson(resposta.getRegraJson(), objectMapper.getNodeFactory().nullNode()));
         corpo.set("trilha", lerJson(resposta.getTrilhaJson(), objectMapper.getNodeFactory().nullNode()));
+        corpo.set("alertas", lerJson(resposta.getAlertasJson(), objectMapper.createArrayNode()));
         return corpo;
     }
 
