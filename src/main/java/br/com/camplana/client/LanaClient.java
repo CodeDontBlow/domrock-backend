@@ -48,7 +48,8 @@ public class LanaClient {
         this.objectMapper = objectMapper;
         this.chatTransport = chatTransport != null ? chatTransport.trim().toLowerCase() : "grpc";
         RestClient.Builder builder = restClientBuilder != null ? restClientBuilder : RestClient.builder();
-        this.restClient = (lanaUrl != null && !lanaUrl.isBlank()) ? builder.baseUrl(lanaUrl).build() : null;
+        String baseUrl = lanaUrl != null ? lanaUrl.trim().replaceAll("/+$", "") : "";
+        this.restClient = !baseUrl.isEmpty() ? builder.baseUrl(baseUrl).build() : null;
     }
 
     public JsonNode invocarAgente(Object corpo) {

@@ -2,7 +2,9 @@ package br.com.camplana.handler;
 
 import br.com.camplana.exception.*;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -11,18 +13,14 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import br.com.camplana.exception.BadRequestException;
-import br.com.camplana.exception.BadRequestExceptionDetails;
-import br.com.camplana.exception.LanaIndisponivelException;
-import br.com.camplana.exception.LanaRespostaException;
-import br.com.camplana.exception.ValidationException;
-import br.com.camplana.exception.ValidationExceptionDetails;
-
-import java.time.LocalDateTime;
+import java.util.Arrays;
 
 @RestControllerAdvice
+@RequiredArgsConstructor
 @Slf4j
 public class GlobalExceptionHandler {
+
+    private final Environment environment;
 
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ErroResponse> handleNotFoundException(NotFoundException ex, HttpServletRequest req) {
@@ -74,6 +72,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErroResponse> handleLanaIndisponivel(LanaIndisponivelException ex,
                                                                HttpServletRequest req) {
         return erro(HttpStatus.BAD_GATEWAY, ex.getMessage(), req);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErroResponse> handleUnexpected(Exception ex, HttpServletRequest req) {
+        log.error("Erro no {}", req.getRequestURI(), ex);
+        boolean isProd = Arrays.asList(environment.getActiveProfiles()).contains("prod");
+        String mensagem = isProd
+                ? "Erro interno do servidor."
+                : ex.getClass().getSimpleName() + ": " + ex.getMessage();
+        return erro(HttpStatus.INTERNAL_SERVER_ERROR, mensagem, req);
     }
 
     private ResponseEntity<ErroResponse> erro(HttpStatus status, String message, HttpServletRequest req) {
