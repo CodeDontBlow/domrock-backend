@@ -1,14 +1,13 @@
 # ---- Build ----
-FROM eclipse-temurin:17-jdk AS build
+FROM maven:3.9.9-eclipse-temurin-17 AS build
 WORKDIR /app
 
 # Cacheia as dependencias do Maven antes de copiar o codigo
-COPY .mvn/ .mvn/
-COPY mvnw pom.xml ./
-RUN chmod +x mvnw && ./mvnw -B dependency:go-offline
+COPY pom.xml ./
+RUN mvn -B dependency:go-offline
 
 COPY src/ src/
-RUN ./mvnw -B package -DskipTests
+RUN mvn -B package -DskipTests
 
 # ---- Runtime ----
 FROM eclipse-temurin:17-jre
