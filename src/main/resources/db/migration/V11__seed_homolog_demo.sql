@@ -509,5 +509,8 @@ BEGIN
             (v_camp_id, v_versao_id, 'APROVADA', 'ARQUIVADA', v_gabriela_id, NOW() - INTERVAL '25 days', 'Encerramento do ciclo de julho.');
         END IF;
     END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Seed V11 warning: %', SQLERRM;
 END
 $seed$;
