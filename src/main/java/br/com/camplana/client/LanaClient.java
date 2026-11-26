@@ -34,7 +34,7 @@ public class LanaClient {
         String chatId = pedido.hasNonNull("chat_id") ? pedido.get("chat_id").asString() : "default";
         String mensagem = pedido.hasNonNull("message") ? pedido.get("message").asString() : "";
         String historico = historicoJson != null ? historicoJson : "";
-        InvokeResponse resposta = chamar(mensagem, chatId, regraEmJson(pedido), historico);
+        InvokeResponse resposta = chamar(mensagem, chatId, regraEmJson(pedido), historico, solicitacaoEmJson(pedido));
         return montarResposta(chatId, resposta);
     }
 
@@ -44,9 +44,15 @@ public class LanaClient {
         return regra.isObject() ? objectMapper.writeValueAsString(regra) : "";
     }
 
-    private InvokeResponse chamar(String mensagem, String chatId, String regraJson, String historicoJson) {
+    // O rascunho do cartão do chat vai junto, para o agente partir dele (A6-81); sem rascunho, "".
+    private String solicitacaoEmJson(JsonNode pedido) {
+        JsonNode solicitacao = pedido.path("solicitacao");
+        return solicitacao.isObject() ? objectMapper.writeValueAsString(solicitacao) : "";
+    }
+
+    private InvokeResponse chamar(String mensagem, String chatId, String regraJson, String historicoJson, String solicitacaoJson) {
         try {
-            return iaGrpcClientService.chamarAgenteLana(mensagem, chatId, regraJson, historicoJson);
+            return iaGrpcClientService.chamarAgenteLana(mensagem, chatId, regraJson, historicoJson, solicitacaoJson);
         } catch (StatusRuntimeException e) {
             throw traduzirFalha(e.getStatus());
         }
@@ -80,6 +86,7 @@ public class LanaClient {
         corpo.set("regra", lerJson(resposta.getRegraJson(), objectMapper.getNodeFactory().nullNode()));
         corpo.set("trilha", lerJson(resposta.getTrilhaJson(), objectMapper.getNodeFactory().nullNode()));
         corpo.set("alertas", lerJson(resposta.getAlertasJson(), objectMapper.createArrayNode()));
+        corpo.set("solicitacao", lerJson(resposta.getSolicitacaoJson(), objectMapper.getNodeFactory().nullNode()));
         return corpo;
     }
 
