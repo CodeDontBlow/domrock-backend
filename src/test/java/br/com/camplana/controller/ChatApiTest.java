@@ -12,6 +12,10 @@ import br.com.camplana.exception.LanaRespostaException;
 import br.com.camplana.repository.MensagemChatRepository;
 import br.com.camplana.repository.SimulacaoRepository;
 import br.com.camplana.service.SimulacaoPersistenceService;
+import br.com.camplana.entity.OrigemSolicitacao;
+import br.com.camplana.entity.SolicitacaoAlteracao;
+import br.com.camplana.entity.StatusSolicitacao;
+import br.com.camplana.repository.SolicitacaoAlteracaoRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +52,9 @@ class ChatApiTest extends CampanhaApiBase {
 
     @Autowired
     private SimulacaoPersistenceService persistenceService;
+
+    @Autowired
+    private SolicitacaoAlteracaoRepository solicitacaoRepository;
 
     @Test
     void gravacaoEmTransacaoSalvaMensagemDoUsuarioERespostaDaLanaJuntas() throws Exception {
@@ -508,5 +515,222 @@ class ChatApiTest extends CampanhaApiBase {
                         .value("SELECT * FROM venda JOIN loja ON venda.loja_id = loja.id"))
                 .andExpect(jsonPath("$.mensagens[1].trilha.passos[0].codigo").value("print(1)"))
                 .andExpect(jsonPath("$.mensagens[1].trilha.passos[0].codigo_gerado").value("print(2)"));
+    }
+
+    @Test
+    void postChatMantemSolicitacaoDaLanaNaResposta() throws Exception {
+        String chatId = "chat-com-solicitacao";
+        given(lanaClient.invocarAgente(any(), any())).willReturn(JSON.readTree("""
+                {
+                  "chat_id": "chat-com-solicitacao",
+                  "response": "Preparei a solicitação.",
+                  "solicitacao": {
+                    "tipo": "TRANSFERENCIA_LOJA",
+                    "matricula": "MATRIC-38",
+                    "competencia": "2025-10",
+                    "antes": "33",
+                    "depois": "8"
+                  }
+                }
+                """));
+
+        mvc.perform(post("/api/chat")
+                        .header("Authorization", autorizacao(gabriela))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"chat_id\":\"" + chatId + "\",\"message\":\"Transferir MATRIC-38\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.solicitacao.tipo").value("TRANSFERENCIA_LOJA"))
+                .andExpect(jsonPath("$.solicitacao.matricula").value("MATRIC-38"))
+                .andExpect(jsonPath("$.solicitacao.antes").value("33"))
+                .andExpect(jsonPath("$.solicitacao.depois").value("8"));
+    }
+
+    @Test
+    void postChatDevolveSolicitacaoNulaQuandoLanaNaoEnvia() throws Exception {
+        String chatId = "chat-sem-solicitacao";
+        given(lanaClient.invocarAgente(any(), any())).willReturn(JSON.readTree("""
+                {
+                  "chat_id": "chat-sem-solicitacao",
+                  "response": "Olá!",
+                  "solicitacao": null
+                }
+                """));
+
+        mvc.perform(post("/api/chat")
+                        .header("Authorization", autorizacao(gabriela))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"chat_id\":\"" + chatId + "\",\"message\":\"Olá\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.solicitacao").isEmpty());
+    }
+
+    @Test
+    void postCorrecoesDoChatRetorna201ComOrigemLanaChatIdDoCaminhoEAutorDoToken() throws Exception {
+        String chatId = "chat-correcoes-sucesso";
+        mensagemChatRepository.save(new MensagemChat(
+                chatId, gabriela, "usuario", null, null, "Quero registrar férias", null, null, Instant.now()
+        ));
+        jdbc.update("insert into funcionario (matricula, data_admissao) values ('MATRIC-CHAT-1', '2024-01-01') on conflict do nothing");
+
+        String payload = """
+                {
+                  "tipo": "FERIAS",
+                  "matricula": "MATRIC-CHAT-1",
+                  "competencia": "2026-11",
+                  "depois": {
+                    "data_inicio": "2026-11-01",
+                    "data_fim": "2026-11-15"
+                  },
+                  "motivo": "Férias aprovadas"
+                }
+                """;
+
+        mvc.perform(post("/api/chat/" + chatId + "/correcoes")
+                        .header("Authorization", autorizacao(gabriela))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.origem").value("LANA"))
+                .andExpect(jsonPath("$.chat_id").value(chatId))
+                .andExpect(jsonPath("$.status").value("PENDENTE"))
+                .andExpect(jsonPath("$.autor.id").value(gabriela.getId()))
+                .andExpect(jsonPath("$.autor.nome").value("Gabriela"))
+                .andExpect(jsonPath("$.descricao_origem").value("aberta pela Lana a pedido de Gabriela"));
+
+        List<SolicitacaoAlteracao> gravadas = solicitacaoRepository.findByAutorIdOrderByCriadaEmDesc(gabriela.getId());
+        assertThat(gravadas).anySatisfy(s -> {
+            assertThat(s.getChatId()).isEqualTo(chatId);
+            assertThat(s.getOrigem()).isEqualTo(OrigemSolicitacao.LANA);
+            assertThat(s.getAutor().getId()).isEqualTo(gabriela.getId());
+            assertThat(s.getStatus()).isEqualTo(StatusSolicitacao.PENDENTE);
+        });
+    }
+
+    @Test
+    void postCorrecoesDoChatIgnoraOrigemEOutrosCamposNoCorpo() throws Exception {
+        String chatId = "chat-correcoes-ignora-origem";
+        mensagemChatRepository.save(new MensagemChat(
+                chatId, gabriela, "usuario", null, null, "Transferir", null, null, Instant.now()
+        ));
+        jdbc.update("insert into funcionario (matricula, data_admissao) values ('MATRIC-CHAT-2', '2024-01-01') on conflict do nothing");
+
+        String payload = """
+                {
+                  "origem": "USUARIO",
+                  "chat_id": "outro-chat",
+                  "autor": "Invasor",
+                  "tipo": "FERIAS",
+                  "matricula": "MATRIC-CHAT-2",
+                  "competencia": "2026-11",
+                  "depois": {
+                    "data_inicio": "2026-11-10",
+                    "data_fim": "2026-11-20"
+                  },
+                  "motivo": "Férias no chat"
+                }
+                """;
+
+        mvc.perform(post("/api/chat/" + chatId + "/correcoes")
+                        .header("Authorization", autorizacao(gabriela))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.origem").value("LANA"))
+                .andExpect(jsonPath("$.chat_id").value(chatId))
+                .andExpect(jsonPath("$.autor.id").value(gabriela.getId()));
+    }
+
+    @Test
+    void postCorrecoesEmConversaDeOutraPessoaRetorna403() throws Exception {
+        String chatId = "chat-da-gabriela-privado";
+        mensagemChatRepository.save(new MensagemChat(
+                chatId, gabriela, "usuario", null, null, "Mensagem da Gabriela", null, null, Instant.now()
+        ));
+
+        String payload = """
+                {
+                  "tipo": "FERIAS",
+                  "matricula": "MATRIC-CHAT-1",
+                  "competencia": "2026-11",
+                  "depois": {
+                    "data_inicio": "2026-11-01",
+                    "data_fim": "2026-11-15"
+                  },
+                  "motivo": "Tentativa por outro usuário"
+                }
+                """;
+
+        mvc.perform(post("/api/chat/" + chatId + "/correcoes")
+                        .header("Authorization", autorizacao(sergio))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("A conversa " + chatId + " pertence a outro usuário"));
+    }
+
+    @Test
+    void postCorrecoesEmConversaInexistenteRetorna404() throws Exception {
+        String payload = """
+                {
+                  "tipo": "FERIAS",
+                  "matricula": "MATRIC-CHAT-1",
+                  "competencia": "2026-11",
+                  "depois": {
+                    "data_inicio": "2026-11-01",
+                    "data_fim": "2026-11-15"
+                  },
+                  "motivo": "Conversa inexistente"
+                }
+                """;
+
+        mvc.perform(post("/api/chat/chat-inexistente-404/correcoes")
+                        .header("Authorization", autorizacao(gabriela))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Conversa chat-inexistente-404 não encontrada"));
+    }
+
+    @Test
+    void postCorrecoesComPerfilAuditorRetorna403() throws Exception {
+        String chatId = "chat-auditor-bloqueado";
+        mensagemChatRepository.save(new MensagemChat(
+                chatId, paulo, "usuario", null, null, "Mensagem do auditor", null, null, Instant.now()
+        ));
+
+        String payload = """
+                {
+                  "tipo": "FERIAS",
+                  "matricula": "MATRIC-CHAT-1",
+                  "competencia": "2026-11",
+                  "depois": {
+                    "data_inicio": "2026-11-01",
+                    "data_fim": "2026-11-15"
+                  },
+                  "motivo": "Auditor tentando criar correção"
+                }
+                """;
+
+        mvc.perform(post("/api/chat/" + chatId + "/correcoes")
+                        .header("Authorization", autorizacao(paulo))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.message").value("Seu perfil não permite esta ação."));
+    }
+
+    @Test
+    void postCorrecoesComCorpoInvalidoRetorna400() throws Exception {
+        String chatId = "chat-corpo-invalido";
+        mensagemChatRepository.save(new MensagemChat(
+                chatId, gabriela, "usuario", null, null, "Mensagem válida", null, null, Instant.now()
+        ));
+
+        mvc.perform(post("/api/chat/" + chatId + "/correcoes")
+                        .header("Authorization", autorizacao(gabriela))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Erro de validação."));
     }
 }

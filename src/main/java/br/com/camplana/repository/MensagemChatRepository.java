@@ -14,6 +14,8 @@ public interface MensagemChatRepository extends JpaRepository<MensagemChat, Long
     @EntityGraph(attributePaths = {"usuario"})
     List<MensagemChat> findByChatIdOrderByCriadaEmAscIdAsc(String chatId);
 
+    boolean existsByChatId(String chatId);
+
     @EntityGraph(attributePaths = {"usuario"})
     Optional<MensagemChat> findFirstByChatIdOrderByCriadaEmAscIdAsc(String chatId);
 

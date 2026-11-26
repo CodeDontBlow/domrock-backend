@@ -42,11 +42,16 @@ public class IaGrpcClientService {
     }
 
     public InvokeResponse chamarAgenteLana(String prompt, String chatId, String regraJson, String historicoJson) {
+        return chamarAgenteLana(prompt, chatId, regraJson, historicoJson, "");
+    }
+
+    public InvokeResponse chamarAgenteLana(String prompt, String chatId, String regraJson, String historicoJson, String solicitacaoJson) {
         InvokeRequest request = InvokeRequest.newBuilder()
                 .setPrompt(prompt)
                 .setChatId(chatId)
                 .setRegraJson(regraJson)
                 .setHistoricoJson(historicoJson != null ? historicoJson : "")
+                .setSolicitacaoJson(solicitacaoJson != null ? solicitacaoJson : "")
                 .build();
 
         return this.blockingStub

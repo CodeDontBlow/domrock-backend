@@ -139,7 +139,9 @@ public class ChatService {
             sisArray.add(converterMensagemParaJson(s, perfil));
         }
         obj.set("mensagens_sistema", sisArray);
-        obj.set("solicitacao", NullNode.getInstance());
+        if (!obj.has("solicitacao")) {
+            obj.set("solicitacao", NullNode.getInstance());
+        }
     }
 
     public JsonNode buscarMensagens(String chatId, Usuario usuario) {
@@ -223,6 +225,13 @@ public class ChatService {
                 alertaTecnicoService.gravarAlertasAutomaticos(campanha, v.getNumero(), alertas);
             });
         });
+    }
+
+    public void validarPosseConversa(String chatId, Usuario usuario) {
+        if (!mensagemChatRepository.existsByChatId(chatId)) {
+            throw new NotFoundException("Conversa " + chatId + " não encontrada");
+        }
+        validarProprietario(chatId, usuario);
     }
 
     private void validarProprietario(String chatId, Usuario usuario) {

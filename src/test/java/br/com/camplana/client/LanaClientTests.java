@@ -79,6 +79,9 @@ class LanaClientTests {
                         .setResposta("Registrei a campanha.").setEventsJson(EVENTOS_JSON).setRegraJson(REGRA_JSON).build());
                 case "consultar vendas" -> responder(observer, InvokeResponse.newBuilder()
                         .setResposta("A marca 30 vendeu R$ 333.666,01.").setTrilhaJson(TRILHA_JSON).build());
+                case "com solicitacao" -> responder(observer, InvokeResponse.newBuilder()
+                        .setResposta("Montei a solicitação.")
+                        .setSolicitacaoJson("{\"tipo\":\"TRANSFERENCIA_LOJA\",\"matricula\":\"MATRIC-38\"}").build());
                 default -> responder(observer, InvokeResponse.newBuilder()
                         .setResposta("Resposta da Lana para: " + request.getPrompt()).build());
             }
@@ -212,6 +215,44 @@ class LanaClientTests {
     void demoraDaLanaVira504() {
         assertThatThrownBy(() -> lanaClient.invocarAgente(Map.of("message", "demorar", "chat_id", "x")))
                 .isInstanceOfSatisfying(LanaRespostaException.class, e -> assertThat(e.getStatus()).isEqualTo(504));
+    }
+
+    @Test
+    void invocarAgenteEnviaSolicitacaoQuandoObjeto() {
+        lanaClient.invocarAgente(Map.of(
+                "message", "trocar motivo",
+                "chat_id", "chat-1",
+                "solicitacao", Map.of("tipo", "TRANSFERENCIA_LOJA", "matricula", "MATRIC-38")
+        ));
+
+        InvokeRequest enviado = ULTIMO_PEDIDO.get();
+        assertThat(enviado.getPrompt()).isEqualTo("trocar motivo");
+        assertThat(JSON.readTree(enviado.getSolicitacaoJson()).get("tipo").asString()).isEqualTo("TRANSFERENCIA_LOJA");
+        assertThat(JSON.readTree(enviado.getSolicitacaoJson()).get("matricula").asString()).isEqualTo("MATRIC-38");
+    }
+
+    @Test
+    void invocarAgenteEnviaSolicitacaoVaziaQuandoAusenteOuNaoObjeto() {
+        lanaClient.invocarAgente(Map.of("message", "oi", "chat_id", "chat-1"));
+
+        InvokeRequest enviado = ULTIMO_PEDIDO.get();
+        assertThat(enviado.getSolicitacaoJson()).isEmpty();
+    }
+
+    @Test
+    void invocarAgenteLeSolicitacaoDaRespostaQuandoPresente() {
+        JsonNode resultado = lanaClient.invocarAgente(Map.of("message", "com solicitacao", "chat_id", "chat-1"));
+
+        assertThat(resultado.get("solicitacao")).isNotNull();
+        assertThat(resultado.get("solicitacao").get("tipo").asString()).isEqualTo("TRANSFERENCIA_LOJA");
+        assertThat(resultado.get("solicitacao").get("matricula").asString()).isEqualTo("MATRIC-38");
+    }
+
+    @Test
+    void invocarAgenteDevolveSolicitacaoNulaQuandoVazioNaResposta() {
+        JsonNode resultado = lanaClient.invocarAgente(Map.of("message", "oi", "chat_id", "chat-1"));
+
+        assertThat(resultado.get("solicitacao").isNull()).isTrue();
     }
 
     @Test
