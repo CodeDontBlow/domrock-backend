@@ -17,9 +17,9 @@ DECLARE
     v_ficha       JSONB;
     v_resultado   JSONB;
 BEGIN
-    SELECT id INTO v_gabriela_id FROM usuario WHERE email = 'gabriela@camplana.com.br';
-    SELECT id INTO v_sergio_id   FROM usuario WHERE email = 'sergio@camplana.com.br';
-    SELECT id INTO v_silvia_id   FROM usuario WHERE email = 'silvia@camplana.com.br';
+    SELECT id INTO v_gabriela_id FROM usuario WHERE email = 'gabriela@camplana.com.br' ORDER BY id ASC LIMIT 1;
+    SELECT id INTO v_sergio_id   FROM usuario WHERE email = 'sergio@camplana.com.br'   ORDER BY id ASC LIMIT 1;
+    SELECT id INTO v_silvia_id   FROM usuario WHERE email = 'silvia@camplana.com.br'   ORDER BY id ASC LIMIT 1;
 
     IF v_gabriela_id IS NULL OR v_sergio_id IS NULL OR v_silvia_id IS NULL THEN
         RAISE NOTICE 'Usuários padrão da V4 não encontrados; ignorando seed V11.';
@@ -142,8 +142,10 @@ BEGIN
 
             INSERT INTO mensagem_chat (chat_id, usuario_id, papel, tipo, simulacao_id, texto, ficha, trilha, criada_em) VALUES
             ('homolog-chat-aguardando-1', v_gabriela_id, 'usuario', NULL, NULL, 'Criar campanha Virada de Novembro de 20 a 28/11/2025 com +1,0% e limite de orçamento R$ 30.000,00.', NULL, NULL, NOW() - INTERVAL '5 days'),
-            ('homolog-chat-aguardando-1', v_gabriela_id, 'lana', NULL, NULL, 'Parâmetros registrados para 20 a 28/11/2025 com meta de R$ 2.200.000,00 e orçamento de R$ 30.000,00.', v_ficha, NULL, NOW() - INTERVAL '5 days' + INTERVAL '4 seconds'),
-            ('homolog-chat-aguardando-1', v_gabriela_id, 'sistema', 'SIMULACAO', v_sim_id, 'Simulação concluída: custo adicional de R$ 24.061,26.', NULL, NULL, NOW() - INTERVAL '5 days' + INTERVAL '8 seconds')
+            ('homolog-chat-aguardando-1', v_gabriela_id, 'lana', NULL, NULL, 'Parâmetros registrados para 20 a 28/11/2025 com meta de R$ 2.200.000,00 e orçamento de R$ 30.000,00.', v_ficha, NULL, NOW() - INTERVAL '5 days' + INTERVAL '4 seconds');
+
+            INSERT INTO mensagem_chat (chat_id, usuario_id, papel, tipo, simulacao_id, texto, ficha, trilha, criada_em)
+            VALUES ('homolog-chat-aguardando-1', v_gabriela_id, 'sistema', 'SIMULACAO', v_sim_id, 'Simulação concluída: custo adicional de R$ 24.061,26.', NULL, NULL, NOW() - INTERVAL '5 days' + INTERVAL '8 seconds')
             RETURNING id INTO v_msg_id;
 
             INSERT INTO campanha_versao (campanha_id, numero, simulacao_id, regra, resultado, data_inicio, data_fim, ultima_mensagem_id, submetida_em)
@@ -205,9 +207,11 @@ BEGIN
             VALUES (v_sergio_id, 'homolog-chat-aguardando-2', v_camp_id, 'CONCLUIDA', 'Concluída', v_ficha, v_resultado, 'llama-3.3-70b-versatile', 1, 1950, NOW() - INTERVAL '4 days', NOW() - INTERVAL '4 days')
             RETURNING id INTO v_sim_id;
 
-            INSERT INTO mensagem_chat (chat_id, usuario_id, papel, tipo, simulacao_id, texto, ficha, trilha, criada_em) VALUES
-            ('homolog-chat-aguardando-2', v_sergio_id, 'usuario', NULL, NULL, 'Simular incentivo de +1,5% na marca Azul em outubro de 2025 com orçamento de R$ 10.000,00.', NULL, NULL, NOW() - INTERVAL '4 days'),
-            ('homolog-chat-aguardando-2', v_sergio_id, 'lana', NULL, NULL, 'Simulação concluída: o custo adicional de R$ 11.950,00 ultrapassou o teto de R$ 10.000,00.', v_ficha, NULL, NOW() - INTERVAL '4 days' + INTERVAL '4 seconds')
+            INSERT INTO mensagem_chat (chat_id, usuario_id, papel, tipo, simulacao_id, texto, ficha, trilha, criada_em)
+            VALUES ('homolog-chat-aguardando-2', v_sergio_id, 'usuario', NULL, NULL, 'Simular incentivo de +1,5% na marca Azul em outubro de 2025 com orçamento de R$ 10.000,00.', NULL, NULL, NOW() - INTERVAL '4 days');
+
+            INSERT INTO mensagem_chat (chat_id, usuario_id, papel, tipo, simulacao_id, texto, ficha, trilha, criada_em)
+            VALUES ('homolog-chat-aguardando-2', v_sergio_id, 'lana', NULL, NULL, 'Simulação concluída: o custo adicional de R$ 11.950,00 ultrapassou o teto de R$ 10.000,00.', v_ficha, NULL, NOW() - INTERVAL '4 days' + INTERVAL '4 seconds')
             RETURNING id INTO v_msg_id;
 
             INSERT INTO campanha_versao (campanha_id, numero, simulacao_id, regra, resultado, data_inicio, data_fim, ultima_mensagem_id, submetida_em)
@@ -274,8 +278,10 @@ BEGIN
 
             INSERT INTO mensagem_chat (chat_id, usuario_id, papel, tipo, simulacao_id, texto, ficha, trilha, criada_em) VALUES
             ('homolog-chat-aprovada-1', v_gabriela_id, 'usuario', NULL, NULL, 'Configurar Black Friday 2025 de 24 a 30/11 com +0,8% e orçamento de R$ 28.000,00.', NULL, NULL, NOW() - INTERVAL '10 days'),
-            ('homolog-chat-aprovada-1', v_gabriela_id, 'lana', NULL, NULL, 'Campanha configurada e simulada com custo adicional de R$ 23.736,10.', v_ficha, NULL, NOW() - INTERVAL '10 days' + INTERVAL '4 seconds'),
-            ('homolog-chat-aprovada-1', v_sergio_id, 'sistema', 'STATUS', v_sim_id, 'Aprovado por Sérgio — v1: dentro do orçamento previsto para Black Friday.', NULL, NULL, NOW() - INTERVAL '8 days')
+            ('homolog-chat-aprovada-1', v_gabriela_id, 'lana', NULL, NULL, 'Campanha configurada e simulada com custo adicional de R$ 23.736,10.', v_ficha, NULL, NOW() - INTERVAL '10 days' + INTERVAL '4 seconds');
+
+            INSERT INTO mensagem_chat (chat_id, usuario_id, papel, tipo, simulacao_id, texto, ficha, trilha, criada_em)
+            VALUES ('homolog-chat-aprovada-1', v_sergio_id, 'sistema', 'STATUS', v_sim_id, 'Aprovado por Sérgio — v1: dentro do orçamento previsto para Black Friday.', NULL, NULL, NOW() - INTERVAL '8 days')
             RETURNING id INTO v_msg_id;
 
             INSERT INTO campanha_versao (campanha_id, numero, simulacao_id, regra, resultado, data_inicio, data_fim, ultima_mensagem_id, submetida_em)
@@ -346,8 +352,10 @@ BEGIN
 
             INSERT INTO mensagem_chat (chat_id, usuario_id, papel, tipo, simulacao_id, texto, ficha, trilha, criada_em) VALUES
             ('homolog-chat-aprovada-2', v_silvia_id, 'usuario', NULL, NULL, 'Incentivo de +1,2% para marcas Vermelho e Amarelo em setembro/2025.', NULL, NULL, NOW() - INTERVAL '15 days'),
-            ('homolog-chat-aprovada-2', v_silvia_id, 'lana', NULL, NULL, 'Simulação concluída: R$ 10.920,00 de custo adicional dentro do limite de R$ 15.000,00.', v_ficha, NULL, NOW() - INTERVAL '15 days' + INTERVAL '4 seconds'),
-            ('homolog-chat-aprovada-2', v_sergio_id, 'sistema', 'STATUS', v_sim_id, 'Aprovado por Sérgio — v1: alinhado ao plano de margem.', NULL, NULL, NOW() - INTERVAL '13 days')
+            ('homolog-chat-aprovada-2', v_silvia_id, 'lana', NULL, NULL, 'Simulação concluída: R$ 10.920,00 de custo adicional dentro do limite de R$ 15.000,00.', v_ficha, NULL, NOW() - INTERVAL '15 days' + INTERVAL '4 seconds');
+
+            INSERT INTO mensagem_chat (chat_id, usuario_id, papel, tipo, simulacao_id, texto, ficha, trilha, criada_em)
+            VALUES ('homolog-chat-aprovada-2', v_sergio_id, 'sistema', 'STATUS', v_sim_id, 'Aprovado por Sérgio — v1: alinhado ao plano de margem.', NULL, NULL, NOW() - INTERVAL '13 days')
             RETURNING id INTO v_msg_id;
 
             INSERT INTO campanha_versao (campanha_id, numero, simulacao_id, regra, resultado, data_inicio, data_fim, ultima_mensagem_id, submetida_em)
@@ -414,9 +422,11 @@ BEGIN
             VALUES (v_gabriela_id, 'homolog-chat-reprovada', v_camp_id, 'CONCLUIDA', 'Concluída', v_ficha, v_resultado, 'llama-3.3-70b-versatile', 1, 2300, NOW() - INTERVAL '20 days', NOW() - INTERVAL '20 days')
             RETURNING id INTO v_sim_id;
 
-            INSERT INTO mensagem_chat (chat_id, usuario_id, papel, tipo, simulacao_id, texto, ficha, trilha, criada_em) VALUES
-            ('homolog-chat-reprovada', v_gabriela_id, 'usuario', NULL, NULL, 'Simular +2,5% em agosto incluindo gerentes.', NULL, NULL, NOW() - INTERVAL '20 days'),
-            ('homolog-chat-reprovada', v_silvia_id, 'sistema', 'STATUS', v_sim_id, 'Reprovado por Sílvia: custo adicional de R$ 95.000,00 ultrapassou o orçamento de R$ 60.000,00.', NULL, NULL, NOW() - INTERVAL '18 days')
+            INSERT INTO mensagem_chat (chat_id, usuario_id, papel, tipo, simulacao_id, texto, ficha, trilha, criada_em)
+            VALUES ('homolog-chat-reprovada', v_gabriela_id, 'usuario', NULL, NULL, 'Simular +2,5% em agosto incluindo gerentes.', NULL, NULL, NOW() - INTERVAL '20 days');
+
+            INSERT INTO mensagem_chat (chat_id, usuario_id, papel, tipo, simulacao_id, texto, ficha, trilha, criada_em)
+            VALUES ('homolog-chat-reprovada', v_silvia_id, 'sistema', 'STATUS', v_sim_id, 'Reprovado por Sílvia: custo adicional de R$ 95.000,00 ultrapassou o orçamento de R$ 60.000,00.', NULL, NULL, NOW() - INTERVAL '18 days')
             RETURNING id INTO v_msg_id;
 
             INSERT INTO campanha_versao (campanha_id, numero, simulacao_id, regra, resultado, data_inicio, data_fim, ultima_mensagem_id, submetida_em)
@@ -481,9 +491,11 @@ BEGIN
             VALUES (v_gabriela_id, 'homolog-chat-arquivada', v_camp_id, 'CONCLUIDA', 'Concluída', v_ficha, v_resultado, 'llama-3.3-70b-versatile', 1, 1450, NOW() - INTERVAL '29 days', NOW() - INTERVAL '29 days')
             RETURNING id INTO v_sim_v2_id;
 
-            INSERT INTO mensagem_chat (chat_id, usuario_id, papel, tipo, simulacao_id, texto, ficha, trilha, criada_em) VALUES
-            ('homolog-chat-arquivada', v_gabriela_id, 'usuario', NULL, NULL, 'Liquidação de inverno para marca Cinza em julho/2025.', NULL, NULL, NOW() - INTERVAL '30 days'),
-            ('homolog-chat-arquivada', v_gabriela_id, 'sistema', 'STATUS', v_sim_v2_id, 'Campanha arquivada após encerramento da competência de julho/2025.', NULL, NULL, NOW() - INTERVAL '25 days')
+            INSERT INTO mensagem_chat (chat_id, usuario_id, papel, tipo, simulacao_id, texto, ficha, trilha, criada_em)
+            VALUES ('homolog-chat-arquivada', v_gabriela_id, 'usuario', NULL, NULL, 'Liquidação de inverno para marca Cinza em julho/2025.', NULL, NULL, NOW() - INTERVAL '30 days');
+
+            INSERT INTO mensagem_chat (chat_id, usuario_id, papel, tipo, simulacao_id, texto, ficha, trilha, criada_em)
+            VALUES ('homolog-chat-arquivada', v_gabriela_id, 'sistema', 'STATUS', v_sim_v2_id, 'Campanha arquivada após encerramento da competência de julho/2025.', NULL, NULL, NOW() - INTERVAL '25 days')
             RETURNING id INTO v_msg_id;
 
             INSERT INTO campanha_versao (campanha_id, numero, simulacao_id, regra, resultado, data_inicio, data_fim, ultima_mensagem_id, submetida_em)
